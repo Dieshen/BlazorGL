@@ -226,12 +226,54 @@ var checkerboard = TextureLoader.CreateCheckerboard(256, 32);
 var solidColor = TextureLoader.CreateColor(Color.Red);
 ```
 
-### GLTF Models
+### 3D Model Formats
+
+BlazorGL supports three major 3D model formats:
+
+#### GLTF/GLB Models (Recommended)
+
+Full support for GLTF 2.0 including materials, textures, and node hierarchy:
 
 ```csharp
 var loader = new GLTFLoader();
 var gltfScene = await loader.LoadAsync("models/robot.glb");
 scene.Add(gltfScene.Scene);
+
+// Access individual objects
+foreach (var child in gltfScene.Scene.Children)
+{
+    Console.WriteLine($"Loaded: {child.Name}");
+}
+```
+
+#### Wavefront OBJ Models
+
+OBJ format with MTL material support:
+
+```csharp
+var loader = new OBJLoader();
+var objGroup = await loader.LoadAsync("models/teapot.obj");
+scene.Add(objGroup);
+
+// OBJ loader automatically loads .mtl files and textures
+```
+
+#### STL Models
+
+STL format (ASCII and binary) for CAD and 3D printing models:
+
+```csharp
+var loader = new STLLoader();
+var mesh = await loader.LoadAsync("models/part.stl");
+scene.Add(mesh);
+
+// STL files don't include materials, so you can customize:
+mesh.Material = new StandardMaterial
+{
+    Color = new Color(0.8f, 0.2f, 0.2f),
+    Metalness = 0.9f,
+    Roughness = 0.1f
+};
 ```
 
 ## 🎬 Animation
