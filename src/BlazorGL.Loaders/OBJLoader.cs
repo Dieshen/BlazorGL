@@ -36,6 +36,16 @@ public class OBJLoader
         return await ParseAsync(content);
     }
 
+    /// <summary>
+    /// Loads an OBJ file from byte array
+    /// </summary>
+    public async Task<Group> LoadFromBytes(byte[] data, string? baseUrl = null)
+    {
+        var content = System.Text.Encoding.UTF8.GetString(data);
+        _baseUrl = baseUrl;
+        return await ParseAsync(content);
+    }
+
     private async Task<Group> ParseAsync(string content)
     {
         var positions = new List<Vector3>();
