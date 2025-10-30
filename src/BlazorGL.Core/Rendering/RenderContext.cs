@@ -46,6 +46,11 @@ public class RenderContext : IDisposable
     private Dictionary<Texture, uint> _textures = new();
 
     /// <summary>
+    /// Render target cache
+    /// </summary>
+    private HashSet<RenderTarget> _initializedRenderTargets = new();
+
+    /// <summary>
     /// Initializes the WebGL context
     /// </summary>
     public async Task InitializeAsync(IJSRuntime jsRuntime, ElementReference canvas)
@@ -290,6 +295,109 @@ public class RenderContext : IDisposable
         }
     }
 
+    /// <summary>
+    /// Initializes a render target's framebuffer
+    /// </summary>
+    public void InitializeRenderTarget(RenderTarget target)
+    {
+        if (_initializedRenderTargets.Contains(target))
+            return;
+
+        // Create framebuffer
+        target.FramebufferId = _gl.CreateFramebuffer();
+        _gl.BindFramebuffer(FramebufferTarget.Framebuffer, target.FramebufferId);
+
+        // Create color texture
+        uint colorTexture = _gl.CreateTexture();
+        _gl.BindTexture(TextureTarget.Texture2D, colorTexture);
+
+        unsafe
+        {
+            _gl.TexImage2D(
+                TextureTarget.Texture2D,
+                0,
+                (int)InternalFormat.Rgba,
+                (uint)target.Width,
+                (uint)target.Height,
+                0,
+                PixelFormat.Rgba,
+                PixelType.UnsignedByte,
+                null
+            );
+        }
+
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
+
+        // Attach color texture to framebuffer
+        _gl.FramebufferTexture2D(
+            FramebufferTarget.Framebuffer,
+            FramebufferAttachment.ColorAttachment0,
+            TextureTarget.Texture2D,
+            colorTexture,
+            0
+        );
+
+        // Store texture in RenderTarget
+        target.Texture.TextureId = colorTexture;
+        target.Texture.Width = target.Width;
+        target.Texture.Height = target.Height;
+        _textures[target.Texture] = colorTexture;
+
+        // Create depth buffer if requested
+        if (target.DepthBuffer)
+        {
+            target.DepthBufferId = _gl.CreateRenderbuffer();
+            _gl.BindRenderbuffer(RenderbufferTarget.Renderbuffer, target.DepthBufferId);
+            _gl.RenderbufferStorage(
+                RenderbufferTarget.Renderbuffer,
+                InternalFormat.DepthComponent16,
+                (uint)target.Width,
+                (uint)target.Height
+            );
+            _gl.FramebufferRenderbuffer(
+                FramebufferTarget.Framebuffer,
+                FramebufferAttachment.DepthAttachment,
+                RenderbufferTarget.Renderbuffer,
+                target.DepthBufferId
+            );
+        }
+
+        // Check framebuffer status
+        var status = _gl.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+        if (status != GLEnum.FramebufferComplete)
+        {
+            throw new Exception($"Framebuffer is not complete: {status}");
+        }
+
+        // Unbind
+        _gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        _gl.BindTexture(TextureTarget.Texture2D, 0);
+        _gl.BindRenderbuffer(RenderbufferTarget.Renderbuffer, 0);
+
+        _initializedRenderTargets.Add(target);
+    }
+
+    /// <summary>
+    /// Binds a render target for rendering (null = screen)
+    /// </summary>
+    public void BindRenderTarget(RenderTarget? target)
+    {
+        if (target != null)
+        {
+            InitializeRenderTarget(target);
+            _gl.BindFramebuffer(FramebufferTarget.Framebuffer, target.FramebufferId);
+            _gl.Viewport(0, 0, (uint)target.Width, (uint)target.Height);
+        }
+        else
+        {
+            _gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            _gl.Viewport(0, 0, (uint)Width, (uint)Height);
+        }
+    }
+
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposed)
@@ -310,6 +418,13 @@ public class RenderContext : IDisposable
                 foreach (var textureId in _textures.Values)
                 {
                     _gl.DeleteTexture(textureId);
+                }
+
+                // Clean up render targets
+                foreach (var renderTarget in _initializedRenderTargets)
+                {
+                    if (renderTarget.FramebufferId != 0) _gl.DeleteFramebuffer(renderTarget.FramebufferId);
+                    if (renderTarget.DepthBufferId != 0) _gl.DeleteRenderbuffer(renderTarget.DepthBufferId);
                 }
 
                 _gl?.Dispose();

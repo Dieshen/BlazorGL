@@ -59,6 +59,11 @@ public class AnimationMixer
                 case "scale":
                     _target.Scale = value;
                     break;
+                case "rotation":
+                    // For rotation tracks, interpret Vector3 as Euler angles (in radians)
+                    var euler = value;
+                    _target.Rotation = System.Numerics.Quaternion.CreateFromYawPitchRoll(euler.Y, euler.X, euler.Z);
+                    break;
             }
         }
     }

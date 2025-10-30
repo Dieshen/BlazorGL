@@ -104,6 +104,14 @@ public class Renderer : IDisposable
     }
 
     /// <summary>
+    /// Sets the render target for off-screen rendering (null = render to screen)
+    /// </summary>
+    public void SetRenderTarget(RenderTarget? target)
+    {
+        _context.BindRenderTarget(target);
+    }
+
+    /// <summary>
     /// Renders a scene with a camera
     /// </summary>
     public void Render(Scene scene, Camera camera)
