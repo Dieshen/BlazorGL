@@ -561,4 +561,586 @@ void main() {
     fragColor = baseColor;
 }";
     }
+
+    public static class Normal
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+in vec3 normal;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform mat4 normalMatrix;
+
+out vec3 vNormal;
+
+void main() {
+    vNormal = normalize(mat3(normalMatrix) * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+uniform float opacity;
+
+in vec3 vNormal;
+
+out vec4 fragColor;
+
+void main() {
+    // Convert normal from [-1,1] to [0,1] for RGB display
+    vec3 color = normalize(vNormal) * 0.5 + 0.5;
+    fragColor = vec4(color, opacity);
+}";
+    }
+
+    public static class Depth
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+out vec4 vViewPosition;
+
+void main() {
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    vViewPosition = mvPosition;
+    gl_Position = projectionMatrix * mvPosition;
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+uniform float opacity;
+uniform float near;
+uniform float far;
+
+in vec4 vViewPosition;
+
+out vec4 fragColor;
+
+void main() {
+    // Linear depth
+    float depth = length(vViewPosition.xyz);
+    float normalizedDepth = (depth - near) / (far - near);
+    normalizedDepth = clamp(normalizedDepth, 0.0, 1.0);
+
+    vec3 color = vec3(normalizedDepth);
+    fragColor = vec4(color, opacity);
+}";
+    }
+
+    public static class Distance
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+
+uniform mat4 modelMatrix;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+out vec3 vWorldPosition;
+
+void main() {
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = worldPosition.xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+uniform float opacity;
+uniform vec3 referencePosition;
+uniform float near;
+uniform float far;
+
+in vec3 vWorldPosition;
+
+out vec4 fragColor;
+
+void main() {
+    float dist = length(vWorldPosition - referencePosition);
+    float normalizedDist = (dist - near) / (far - near);
+    normalizedDist = clamp(normalizedDist, 0.0, 1.0);
+
+    vec3 color = vec3(normalizedDist);
+    fragColor = vec4(color, opacity);
+}";
+    }
+
+    public static class Lambert
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+in vec3 normal;
+in vec2 uv;
+
+uniform mat4 modelMatrix;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform mat4 normalMatrix;
+
+out vec2 vUv;
+out vec3 vNormal;
+out vec3 vWorldPosition;
+
+void main() {
+    vUv = uv;
+    vNormal = mat3(normalMatrix) * normal;
+    vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+struct DirectionalLight {
+    vec3 direction;
+    vec3 color;
+    float intensity;
+};
+
+struct PointLight {
+    vec3 position;
+    vec3 color;
+    float intensity;
+    float distance;
+    float decay;
+};
+
+uniform vec3 color;
+uniform float opacity;
+uniform vec3 emissive;
+uniform float emissiveIntensity;
+uniform sampler2D map;
+uniform sampler2D emissiveMap;
+uniform bool useMap;
+uniform bool useEmissiveMap;
+
+uniform vec3 ambientLightColor;
+uniform DirectionalLight directionalLights[4];
+uniform PointLight pointLights[4];
+uniform int numDirectionalLights;
+uniform int numPointLights;
+
+in vec2 vUv;
+in vec3 vNormal;
+in vec3 vWorldPosition;
+
+out vec4 fragColor;
+
+void main() {
+    vec4 baseColor = vec4(color, opacity);
+
+    if (useMap) {
+        baseColor *= texture(map, vUv);
+    }
+
+    vec3 normal = normalize(vNormal);
+    vec3 diffuse = ambientLightColor;
+
+    // Directional lights (Lambertian)
+    for (int i = 0; i < numDirectionalLights && i < 4; i++) {
+        float diff = max(dot(normal, directionalLights[i].direction), 0.0);
+        diffuse += directionalLights[i].color * directionalLights[i].intensity * diff;
+    }
+
+    // Point lights (Lambertian with attenuation)
+    for (int i = 0; i < numPointLights && i < 4; i++) {
+        vec3 lightDir = normalize(pointLights[i].position - vWorldPosition);
+        float diff = max(dot(normal, lightDir), 0.0);
+
+        float distance = length(pointLights[i].position - vWorldPosition);
+        float attenuation = 1.0 / (1.0 + pointLights[i].decay * distance);
+
+        diffuse += pointLights[i].color * pointLights[i].intensity * diff * attenuation;
+    }
+
+    vec3 finalColor = baseColor.rgb * diffuse;
+
+    // Emissive
+    vec3 emissiveColor = emissive * emissiveIntensity;
+    if (useEmissiveMap) {
+        emissiveColor *= texture(emissiveMap, vUv).rgb;
+    }
+    finalColor += emissiveColor;
+
+    fragColor = vec4(finalColor, baseColor.a);
+}";
+    }
+
+    public static class Toon
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+in vec3 normal;
+in vec2 uv;
+
+uniform mat4 modelMatrix;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform mat4 normalMatrix;
+
+out vec2 vUv;
+out vec3 vNormal;
+out vec3 vWorldPosition;
+
+void main() {
+    vUv = uv;
+    vNormal = mat3(normalMatrix) * normal;
+    vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+struct DirectionalLight {
+    vec3 direction;
+    vec3 color;
+    float intensity;
+};
+
+uniform vec3 color;
+uniform float opacity;
+uniform vec3 emissive;
+uniform float emissiveIntensity;
+uniform sampler2D map;
+uniform sampler2D gradientMap;
+uniform bool useMap;
+uniform bool useGradientMap;
+
+uniform vec3 ambientLightColor;
+uniform DirectionalLight directionalLights[4];
+uniform int numDirectionalLights;
+
+in vec2 vUv;
+in vec3 vNormal;
+in vec3 vWorldPosition;
+
+out vec4 fragColor;
+
+void main() {
+    vec4 baseColor = vec4(color, opacity);
+
+    if (useMap) {
+        baseColor *= texture(map, vUv);
+    }
+
+    vec3 normal = normalize(vNormal);
+    float totalIntensity = 0.0;
+
+    // Calculate lighting intensity
+    for (int i = 0; i < numDirectionalLights && i < 4; i++) {
+        float intensity = max(dot(normal, directionalLights[i].direction), 0.0);
+        totalIntensity += intensity * directionalLights[i].intensity;
+    }
+
+    totalIntensity = clamp(totalIntensity, 0.0, 1.0);
+
+    // Apply gradient map for toon steps
+    vec3 toonColor;
+    if (useGradientMap) {
+        toonColor = texture(gradientMap, vec2(totalIntensity, 0.5)).rgb;
+    } else {
+        // Default 3-step toon shading
+        if (totalIntensity > 0.95) {
+            toonColor = vec3(1.0);
+        } else if (totalIntensity > 0.5) {
+            toonColor = vec3(0.7);
+        } else if (totalIntensity > 0.25) {
+            toonColor = vec3(0.4);
+        } else {
+            toonColor = vec3(0.2);
+        }
+    }
+
+    vec3 finalColor = baseColor.rgb * toonColor;
+    finalColor += emissive * emissiveIntensity;
+
+    fragColor = vec4(finalColor, baseColor.a);
+}";
+    }
+
+    public static class Matcap
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+in vec3 normal;
+in vec2 uv;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform mat4 normalMatrix;
+
+out vec2 vUv;
+out vec3 vNormal;
+
+void main() {
+    vUv = uv;
+    vNormal = normalize(mat3(normalMatrix) * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+uniform vec3 color;
+uniform float opacity;
+uniform sampler2D matcap;
+uniform sampler2D map;
+uniform bool useMatcap;
+uniform bool useMap;
+
+in vec2 vUv;
+in vec3 vNormal;
+
+out vec4 fragColor;
+
+void main() {
+    vec4 baseColor = vec4(color, opacity);
+
+    if (useMap) {
+        baseColor *= texture(map, vUv);
+    }
+
+    vec3 finalColor = baseColor.rgb;
+
+    if (useMatcap) {
+        // Convert view-space normal to UV coordinates
+        vec3 viewNormal = normalize(vNormal);
+        vec2 matcapUV = viewNormal.xy * 0.5 + 0.5;
+        vec3 matcapColor = texture(matcap, matcapUV).rgb;
+        finalColor *= matcapColor;
+    }
+
+    fragColor = vec4(finalColor, baseColor.a);
+}";
+    }
+
+    public static class Physical
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+in vec3 normal;
+in vec2 uv;
+
+uniform mat4 modelMatrix;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform mat4 normalMatrix;
+
+out vec2 vUv;
+out vec3 vNormal;
+out vec3 vWorldPosition;
+out vec3 vViewPosition;
+
+void main() {
+    vUv = uv;
+    vNormal = mat3(normalMatrix) * normal;
+
+    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = worldPos.xyz;
+
+    vec4 viewPos = modelViewMatrix * vec4(position, 1.0);
+    vViewPosition = viewPos.xyz;
+
+    gl_Position = projectionMatrix * viewPos;
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+struct DirectionalLight {
+    vec3 direction;
+    vec3 color;
+    float intensity;
+};
+
+uniform vec3 color;
+uniform float opacity;
+uniform float metalness;
+uniform float roughness;
+uniform vec3 emissive;
+uniform float emissiveIntensity;
+
+// Advanced properties
+uniform float clearcoat;
+uniform float clearcoatRoughness;
+uniform float transmission;
+uniform float thickness;
+uniform float sheen;
+uniform vec3 sheenColor;
+uniform float sheenRoughness;
+uniform float iridescence;
+uniform float ior;
+
+uniform sampler2D map;
+uniform bool useMap;
+
+uniform vec3 ambientLightColor;
+uniform DirectionalLight directionalLights[4];
+uniform int numDirectionalLights;
+uniform vec3 cameraPosition;
+
+in vec2 vUv;
+in vec3 vNormal;
+in vec3 vWorldPosition;
+in vec3 vViewPosition;
+
+out vec4 fragColor;
+
+// Simplified PBR (full implementation would be much longer)
+void main() {
+    vec4 baseColor = vec4(color, opacity);
+
+    if (useMap) {
+        baseColor *= texture(map, vUv);
+    }
+
+    vec3 normal = normalize(vNormal);
+    vec3 viewDir = normalize(cameraPosition - vWorldPosition);
+
+    // Basic PBR calculation (simplified)
+    vec3 result = ambientLightColor * baseColor.rgb;
+
+    for (int i = 0; i < numDirectionalLights && i < 4; i++) {
+        vec3 lightDir = directionalLights[i].direction;
+        float NdotL = max(dot(normal, lightDir), 0.0);
+
+        // Diffuse
+        vec3 diffuse = baseColor.rgb * (1.0 - metalness);
+
+        // Specular (simplified)
+        vec3 halfDir = normalize(lightDir + viewDir);
+        float NdotH = max(dot(normal, halfDir), 0.0);
+        float spec = pow(NdotH, (1.0 - roughness) * 128.0);
+        vec3 specular = vec3(spec) * metalness;
+
+        result += (diffuse + specular) * directionalLights[i].color *
+                  directionalLights[i].intensity * NdotL;
+    }
+
+    // Add emissive
+    result += emissive * emissiveIntensity;
+
+    // Apply advanced effects (simplified)
+    if (clearcoat > 0.0) {
+        result = mix(result, result * 1.2, clearcoat);
+    }
+    if (sheen > 0.0) {
+        float sheenAmount = pow(1.0 - max(dot(normal, viewDir), 0.0), 5.0);
+        result += sheenColor * sheen * sheenAmount;
+    }
+
+    fragColor = vec4(result, baseColor.a);
+}";
+    }
+
+    public static class Shadow
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+void main() {
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+uniform vec3 color;
+uniform float opacity;
+
+out vec4 fragColor;
+
+void main() {
+    // Shadow material - would normally sample shadow map
+    // For now, just output shadow color with opacity
+    fragColor = vec4(color, opacity * 0.5);
+}";
+    }
+
+    public static class Sprite
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+in vec2 uv;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform float rotation;
+uniform bool sizeAttenuation;
+
+out vec2 vUv;
+
+void main() {
+    vUv = uv;
+
+    vec2 scale = vec2(1.0);
+
+    // Apply rotation
+    vec2 alignedPosition = position.xy;
+    if (rotation != 0.0) {
+        float c = cos(rotation);
+        float s = sin(rotation);
+        alignedPosition = vec2(
+            alignedPosition.x * c - alignedPosition.y * s,
+            alignedPosition.x * s + alignedPosition.y * c
+        );
+    }
+
+    vec4 mvPosition = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+    mvPosition.xy += alignedPosition * scale;
+
+    gl_Position = projectionMatrix * mvPosition;
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+uniform vec3 color;
+uniform float opacity;
+uniform sampler2D map;
+uniform bool useMap;
+
+in vec2 vUv;
+
+out vec4 fragColor;
+
+void main() {
+    vec4 baseColor = vec4(color, opacity);
+
+    if (useMap) {
+        baseColor *= texture(map, vUv);
+    }
+
+    fragColor = baseColor;
+}";
+    }
 }
