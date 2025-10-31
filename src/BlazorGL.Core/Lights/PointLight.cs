@@ -15,9 +15,21 @@ public class PointLight : Light
     /// </summary>
     public float Decay { get; set; } = 2.0f;
 
+    /// <summary>
+    /// Whether this light casts shadows
+    /// </summary>
+    public bool CastShadow { get; set; } = false;
+
+    /// <summary>
+    /// Shadow configuration
+    /// </summary>
+    public PointLightShadow Shadow { get; set; }
+
     public PointLight()
     {
         Name = "PointLight";
+        Shadow = new PointLightShadow();
+        Shadow.SetLight(this);
     }
 
     public PointLight(Math.Color color, float intensity = 1.0f, float distance = 0, float decay = 2.0f)
@@ -27,5 +39,7 @@ public class PointLight : Light
         Intensity = intensity;
         Distance = distance;
         Decay = decay;
+        Shadow = new PointLightShadow();
+        Shadow.SetLight(this);
     }
 }

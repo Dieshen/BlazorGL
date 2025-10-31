@@ -38,9 +38,21 @@ public class SpotLight : Light
     /// </summary>
     public float Decay { get; set; } = 2.0f;
 
+    /// <summary>
+    /// Whether this light casts shadows
+    /// </summary>
+    public bool CastShadow { get; set; } = false;
+
+    /// <summary>
+    /// Shadow configuration
+    /// </summary>
+    public SpotLightShadow Shadow { get; set; }
+
     public SpotLight()
     {
         Name = "SpotLight";
+        Shadow = new SpotLightShadow();
+        Shadow.SetLight(this);
     }
 
     public SpotLight(Math.Color color, float intensity = 1.0f)
@@ -48,5 +60,7 @@ public class SpotLight : Light
         Name = "SpotLight";
         Color = color;
         Intensity = intensity;
+        Shadow = new SpotLightShadow();
+        Shadow.SetLight(this);
     }
 }

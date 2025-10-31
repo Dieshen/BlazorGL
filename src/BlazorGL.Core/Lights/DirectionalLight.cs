@@ -19,13 +19,20 @@ public class DirectionalLight : Light
     }
 
     /// <summary>
-    /// Shadow map settings
+    /// Whether this light casts shadows
     /// </summary>
-    public ShadowMapSettings? Shadow { get; set; }
+    public bool CastShadow { get; set; } = false;
+
+    /// <summary>
+    /// Shadow configuration
+    /// </summary>
+    public DirectionalLightShadow Shadow { get; set; }
 
     public DirectionalLight()
     {
         Name = "DirectionalLight";
+        Shadow = new DirectionalLightShadow();
+        Shadow.SetLight(this);
     }
 
     public DirectionalLight(Math.Color color, float intensity = 1.0f)
@@ -33,17 +40,7 @@ public class DirectionalLight : Light
         Name = "DirectionalLight";
         Color = color;
         Intensity = intensity;
+        Shadow = new DirectionalLightShadow();
+        Shadow.SetLight(this);
     }
-}
-
-/// <summary>
-/// Shadow map configuration
-/// </summary>
-public class ShadowMapSettings
-{
-    public int MapWidth { get; set; } = 1024;
-    public int MapHeight { get; set; } = 1024;
-    public float Near { get; set; } = 0.1f;
-    public float Far { get; set; } = 500f;
-    public float Bias { get; set; } = 0.001f;
 }

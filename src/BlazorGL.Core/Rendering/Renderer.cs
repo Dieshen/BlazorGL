@@ -159,6 +159,18 @@ public class Renderer : IDisposable
         // Collect lights
         var lights = scene.Lights;
 
+        // Render shadow maps
+        RenderShadows(scene, renderList, lights);
+
+        // Restore default framebuffer
+        SetRenderTarget(null);
+
+        // Clear for main render
+        if (AutoClear)
+        {
+            _context.Clear(true, true, false);
+        }
+
         // Render all items
         foreach (var item in renderList)
         {
@@ -189,6 +201,176 @@ public class Renderer : IDisposable
         }
 
         Stats.EndFrame();
+    }
+
+    /// <summary>
+    /// Renders shadow maps for all shadow-casting lights
+    /// </summary>
+    private void RenderShadows(Scene scene, List<RenderItem> renderList, List<Light> lights)
+    {
+        foreach (var light in lights)
+        {
+            if (light is DirectionalLight dirLight && dirLight.CastShadow)
+            {
+                RenderDirectionalLightShadow(dirLight, renderList);
+            }
+            else if (light is SpotLight spotLight && spotLight.CastShadow)
+            {
+                RenderSpotLightShadow(spotLight, renderList);
+            }
+            else if (light is PointLight pointLight && pointLight.CastShadow)
+            {
+                RenderPointLightShadow(pointLight, renderList);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Renders shadow map for a directional light
+    /// </summary>
+    private void RenderDirectionalLightShadow(DirectionalLight light, List<RenderItem> renderList)
+    {
+        var shadow = light.Shadow;
+
+        // Initialize shadow map if needed
+        shadow.Initialize();
+
+        // Update shadow camera
+        shadow.UpdateShadowCamera();
+
+        // Bind shadow map render target
+        SetRenderTarget(shadow.Map);
+
+        // Clear depth buffer
+        _context.Clear(false, true, false);
+
+        // Render scene from light's perspective
+        foreach (var item in renderList)
+        {
+            if (item.Object is Mesh mesh)
+            {
+                RenderMeshToShadowMap(mesh, shadow.Camera);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Renders shadow map for a spot light
+    /// </summary>
+    private void RenderSpotLightShadow(SpotLight light, List<RenderItem> renderList)
+    {
+        var shadow = light.Shadow;
+
+        // Initialize shadow map if needed
+        shadow.Initialize();
+
+        // Update shadow camera
+        shadow.UpdateShadowCamera();
+
+        // Bind shadow map render target
+        SetRenderTarget(shadow.Map);
+
+        // Clear depth buffer
+        _context.Clear(false, true, false);
+
+        // Render scene from light's perspective
+        foreach (var item in renderList)
+        {
+            if (item.Object is Mesh mesh)
+            {
+                RenderMeshToShadowMap(mesh, shadow.Camera);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Renders shadow map for a point light (cubemap - 6 faces)
+    /// </summary>
+    private void RenderPointLightShadow(PointLight light, List<RenderItem> renderList)
+    {
+        var shadow = light.Shadow;
+
+        // Initialize shadow map if needed
+        shadow.Initialize();
+
+        // Update shadow cameras
+        shadow.UpdateShadowCamera();
+
+        // Render to each of the 6 cubemap faces
+        for (int i = 0; i < 6; i++)
+        {
+            // TODO: For now, render to the same map (proper cubemap support would require 6 render targets or layered rendering)
+            SetRenderTarget(shadow.Map);
+
+            // Clear depth buffer
+            _context.Clear(false, true, false);
+
+            // Render scene from this face's camera perspective
+            foreach (var item in renderList)
+            {
+                if (item.Object is Mesh mesh)
+                {
+                    RenderMeshToShadowMap(mesh, shadow.Cameras[i]);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Renders a mesh to the shadow map using depth-only material
+    /// </summary>
+    private void RenderMeshToShadowMap(Mesh mesh, Camera shadowCamera)
+    {
+        var geometry = mesh.Geometry;
+
+        // Create or get depth material for shadow rendering
+        var depthMaterial = new DepthMaterial();
+
+        // Compile shader if needed
+        if (depthMaterial.NeedsCompile || !depthMaterial.Shader.IsCompiled)
+        {
+            depthMaterial.OnBeforeCompile(depthMaterial.Shader);
+            depthMaterial.Shader.Compile(_context.GL);
+            depthMaterial.NeedsCompile = false;
+        }
+
+        // Use shader
+        if (_state.CurrentShader != depthMaterial.Shader)
+        {
+            depthMaterial.Shader.Use(_context.GL);
+            _state.CurrentShader = depthMaterial.Shader;
+        }
+
+        // Get geometry buffers
+        var buffers = _context.GetGeometryBuffers(geometry);
+
+        // Bind VAO
+        if (_state.CurrentVAO != buffers.VAO)
+        {
+            _context.GL.BindVertexArray(buffers.VAO);
+            _state.CurrentVAO = buffers.VAO;
+            SetupAttributes(depthMaterial.Shader, buffers);
+        }
+
+        // Set uniforms for shadow rendering
+        var gl = _context.GL;
+        var shader = depthMaterial.Shader;
+
+        var modelMatrix = mesh.WorldMatrix;
+        var viewMatrix = shadowCamera.ViewMatrix;
+        var projectionMatrix = shadowCamera.ProjectionMatrix;
+        var mvpMatrix = modelMatrix * viewMatrix * projectionMatrix;
+
+        _context.SetUniform(shader.GetUniformLocation(gl, "modelMatrix"), modelMatrix);
+        _context.SetUniform(shader.GetUniformLocation(gl, "viewMatrix"), viewMatrix);
+        _context.SetUniform(shader.GetUniformLocation(gl, "projectionMatrix"), projectionMatrix);
+        _context.SetUniform(shader.GetUniformLocation(gl, "modelViewMatrix"), modelMatrix * viewMatrix);
+
+        // Draw
+        if (buffers.IndexCount > 0)
+        {
+            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, null);
+        }
     }
 
     /// <summary>
@@ -680,12 +862,36 @@ public class Renderer : IDisposable
         var dirLights = lights.OfType<DirectionalLight>().Take(4).ToArray();
         _context.SetUniform(shader.GetUniformLocation(gl, "numDirectionalLights"), dirLights.Length);
 
+        int shadowTextureUnit = 10; // Start shadow maps at texture unit 10
+
         for (int i = 0; i < dirLights.Length; i++)
         {
             var light = dirLights[i];
             _context.SetUniform(shader.GetUniformLocation(gl, $"directionalLights[{i}].direction"), light.Direction);
             _context.SetUniform(shader.GetUniformLocation(gl, $"directionalLights[{i}].color"), light.Color.ToVector3());
             _context.SetUniform(shader.GetUniformLocation(gl, $"directionalLights[{i}].intensity"), light.Intensity);
+
+            // Shadow uniforms
+            if (light.CastShadow && light.Shadow.Map != null)
+            {
+                _context.SetUniform(shader.GetUniformLocation(gl, $"directionalLights[{i}].castShadow"), 1);
+                _context.SetUniform(shader.GetUniformLocation(gl, $"directionalLights[{i}].shadowBias"), light.Shadow.Bias);
+                _context.SetUniform(shader.GetUniformLocation(gl, $"directionalLights[{i}].shadowRadius"), light.Shadow.Radius);
+
+                // Shadow matrix (light view-projection)
+                var shadowMatrix = light.Shadow.Camera.ViewMatrix * light.Shadow.Camera.ProjectionMatrix;
+                _context.SetUniform(shader.GetUniformLocation(gl, $"directionalShadowMatrix[{i}]"), shadowMatrix);
+
+                // Bind shadow map texture
+                gl.ActiveTexture((TextureUnit)((int)TextureUnit.Texture0 + shadowTextureUnit));
+                gl.BindTexture(TextureTarget.Texture2D, light.Shadow.Map.Texture.TextureId);
+                _context.SetUniform(shader.GetUniformLocation(gl, $"directionalShadowMap[{i}]"), shadowTextureUnit);
+                shadowTextureUnit++;
+            }
+            else
+            {
+                _context.SetUniform(shader.GetUniformLocation(gl, $"directionalLights[{i}].castShadow"), 0);
+            }
         }
 
         // Point lights
@@ -701,6 +907,24 @@ public class Renderer : IDisposable
             _context.SetUniform(shader.GetUniformLocation(gl, $"pointLights[{i}].intensity"), light.Intensity);
             _context.SetUniform(shader.GetUniformLocation(gl, $"pointLights[{i}].distance"), light.Distance);
             _context.SetUniform(shader.GetUniformLocation(gl, $"pointLights[{i}].decay"), light.Decay);
+
+            // Shadow uniforms
+            if (light.CastShadow && light.Shadow.Map != null)
+            {
+                _context.SetUniform(shader.GetUniformLocation(gl, $"pointLights[{i}].castShadow"), 1);
+                _context.SetUniform(shader.GetUniformLocation(gl, $"pointLights[{i}].shadowBias"), light.Shadow.Bias);
+                _context.SetUniform(shader.GetUniformLocation(gl, $"pointLights[{i}].shadowRadius"), light.Shadow.Radius);
+
+                // Bind shadow cubemap (for now using 2D texture)
+                gl.ActiveTexture((TextureUnit)((int)TextureUnit.Texture0 + shadowTextureUnit));
+                gl.BindTexture(TextureTarget.Texture2D, light.Shadow.Map.Texture.TextureId);
+                _context.SetUniform(shader.GetUniformLocation(gl, $"pointShadowMap[{i}]"), shadowTextureUnit);
+                shadowTextureUnit++;
+            }
+            else
+            {
+                _context.SetUniform(shader.GetUniformLocation(gl, $"pointLights[{i}].castShadow"), 0);
+            }
         }
 
         // Spot lights
@@ -719,6 +943,28 @@ public class Renderer : IDisposable
             _context.SetUniform(shader.GetUniformLocation(gl, $"spotLights[{i}].angle"), light.Angle);
             _context.SetUniform(shader.GetUniformLocation(gl, $"spotLights[{i}].penumbra"), light.Penumbra);
             _context.SetUniform(shader.GetUniformLocation(gl, $"spotLights[{i}].decay"), light.Decay);
+
+            // Shadow uniforms
+            if (light.CastShadow && light.Shadow.Map != null)
+            {
+                _context.SetUniform(shader.GetUniformLocation(gl, $"spotLights[{i}].castShadow"), 1);
+                _context.SetUniform(shader.GetUniformLocation(gl, $"spotLights[{i}].shadowBias"), light.Shadow.Bias);
+                _context.SetUniform(shader.GetUniformLocation(gl, $"spotLights[{i}].shadowRadius"), light.Shadow.Radius);
+
+                // Shadow matrix (light view-projection)
+                var shadowMatrix = light.Shadow.Camera.ViewMatrix * light.Shadow.Camera.ProjectionMatrix;
+                _context.SetUniform(shader.GetUniformLocation(gl, $"spotShadowMatrix[{i}]"), shadowMatrix);
+
+                // Bind shadow map texture
+                gl.ActiveTexture((TextureUnit)((int)TextureUnit.Texture0 + shadowTextureUnit));
+                gl.BindTexture(TextureTarget.Texture2D, light.Shadow.Map.Texture.TextureId);
+                _context.SetUniform(shader.GetUniformLocation(gl, $"spotShadowMap[{i}]"), shadowTextureUnit);
+                shadowTextureUnit++;
+            }
+            else
+            {
+                _context.SetUniform(shader.GetUniformLocation(gl, $"spotLights[{i}].castShadow"), 0);
+            }
         }
 
         // Hemisphere lights
