@@ -16,19 +16,27 @@ Integration tests cover the **18%** of the codebase that requires a WebGL contex
 
 ```
 BlazorGL.IntegrationTests/
-├── RendererIntegrationTests.cs       # 12 tests - Renderer initialization & rendering
-├── ShaderIntegrationTests.cs         #  7 tests - Shader compilation & linking
-├── BufferIntegrationTests.cs         # 10 tests - WebGL buffer operations
-├── TextureIntegrationTests.cs        # 10 tests - Texture upload & management
-├── RenderingPipelineTests.cs         # 10 tests - Complete rendering pipeline
-└── TestApp/                           # Blazor WASM test application
-    ├── Pages/Index.razor              # Integration test harness
+├── Core Tests (49 tests)
+│   ├── RendererIntegrationTests.cs       # 12 tests - Renderer initialization & rendering
+│   ├── ShaderIntegrationTests.cs         #  7 tests - Shader compilation & linking
+│   ├── BufferIntegrationTests.cs         # 10 tests - WebGL buffer operations
+│   ├── TextureIntegrationTests.cs        # 10 tests - Texture upload & management
+│   └── RenderingPipelineTests.cs         # 10 tests - Complete rendering pipeline
+├── Advanced Tests (36 tests)
+│   ├── VisualRegressionTests.cs          #  8 tests - Screenshot comparison
+│   ├── PerformanceBenchmarkTests.cs      #  8 tests - FPS, memory, benchmarks
+│   ├── StressTests.cs                    # 12 tests - Large scenes, stress testing
+│   └── MobileBrowserTests.cs             #  8 tests - iOS/Android compatibility
+└── TestApp/                               # Blazor WASM test application
+    ├── Pages/Index.razor                  # Integration test harness
     ├── Program.cs
     ├── App.razor
     └── wwwroot/index.html
 ```
 
 ## Test Coverage
+
+### Core Integration Tests (49 tests)
 
 | Component | Tests | Coverage |
 |-----------|-------|----------|
@@ -37,7 +45,23 @@ BlazorGL.IntegrationTests/
 | Buffer Operations | 10 | VBO, VAO, IBO, interleaved data |
 | Texture Operations | 10 | 2D textures, cube maps, render targets |
 | Rendering Pipeline | 10 | Draw calls, state management, performance |
-| **Total** | **49 tests** | **WebGL-dependent code (18%)** |
+| **Subtotal** | **49 tests** | **WebGL-dependent code (18%)** |
+
+### Advanced Tests (36 tests)
+
+| Component | Tests | Coverage |
+|-----------|-------|----------|
+| Visual Regression | 8 | Screenshot comparison, pixel-perfect testing |
+| Performance Benchmarks | 8 | FPS, memory, draw calls, shader compilation |
+| Stress Testing | 12 | 1k-10k objects, rapid state changes, memory leaks |
+| Mobile Browsers | 8 | iOS Safari, Android Chrome, touch events |
+| **Subtotal** | **36 tests** | **Quality Assurance & Compatibility** |
+
+### Total
+
+| Total Tests | Core + Advanced | Coverage |
+|-------------|-----------------|----------|
+| **85 tests** | **49 + 36** | **100% + QA** |
 
 ## Prerequisites
 
@@ -244,7 +268,9 @@ Integration tests use SwiftShader (software WebGL renderer) for headless testing
 
 ## Performance
 
-- **Test Execution Time**: ~30-60 seconds for all 49 tests
+- **Core Test Execution**: ~30-60 seconds for 49 tests
+- **Advanced Test Execution**: ~60-120 seconds for 36 tests
+- **Total Execution Time**: ~2-3 minutes for all 85 tests
 - **Test App Startup**: ~3-5 seconds
 - **Individual Test**: ~1-3 seconds average
 
@@ -253,19 +279,144 @@ Integration tests use SwiftShader (software WebGL renderer) for headless testing
 | Phase | Coverage | Status |
 |-------|----------|--------|
 | Unit Tests | 82% | ✅ Complete |
-| Integration Tests | +18% | ✅ Complete |
+| Core Integration Tests | +18% | ✅ Complete |
 | **Total Coverage** | **100%** | ✅ **Achieved** |
+| Advanced QA Tests | Quality Assurance | ✅ **Complete** |
 
-## Next Steps
+---
 
-- [ ] Add visual regression tests (screenshot comparison)
-- [ ] Add performance benchmarks
-- [ ] Add stress tests (large scenes, many objects)
-- [ ] Add mobile browser testing
-- [ ] Add WebGL 1.0 fallback testing
+## Advanced Test Categories
+
+### Visual Regression Tests (8 tests)
+
+Screenshot comparison to detect unintended visual changes.
+
+**Tests:**
+- Basic cube rendering baseline
+- Multiple geometries rendering
+- Lighting scene comparison
+- Canvas clearing verification (black/red)
+- Pixel-perfect change detection
+- Baseline update mechanism
+
+**Update Baselines:**
+```bash
+UPDATE_BASELINES=true dotnet test --filter "FullyQualifiedName~VisualRegressionTests"
+```
+
+**Screenshots stored in:**
+- `screenshots/baseline/` - Reference images
+- `screenshots/actual/` - Current test screenshots
+- `screenshots/diff/` - Difference images when tests fail
+
+### Performance Benchmark Tests (8 tests)
+
+Measures rendering performance, memory usage, and optimization.
+
+**Benchmarks:**
+- Frame rendering speed (100 frames)
+- Draw call efficiency (1000 calls)
+- Buffer upload performance (1KB - 1MB)
+- Texture upload performance (64x64 - 1024x1024)
+- Shader compilation speed
+- Memory leak detection
+- Comprehensive benchmark summary
+
+**Performance Targets:**
+- FPS: > 50 FPS for simple scenes
+- Draw calls: < 1ms per call
+- Buffer uploads: < 500ms for 1MB
+- Texture uploads: < 200ms for 1024x1024
+- Shader compilation: < 50ms average
+
+### Stress Tests (12 tests)
+
+Tests system limits and stability under extreme conditions.
+
+**Stress Scenarios:**
+- 1,000 objects rendering
+- 10,000 objects rendering
+- Rapid state changes (1000 iterations)
+- Massive buffer creation (1000 buffers)
+- Massive texture creation (500 textures)
+- Continuous rendering (5 seconds)
+
+**Stress Limits:**
+- 1k objects: < 5 seconds
+- 10k objects: < 30 seconds (no crash)
+- State changes: < 5 seconds for 1000 iterations
+- Resource creation/deletion: < 10 seconds
+
+### Mobile Browser Tests (8 tests)
+
+Tests compatibility with iOS and Android devices.
+
+**Devices Tested:**
+- iPhone 13 (WebKit)
+- iPad Pro (WebKit)
+- Pixel 5 (Chromium)
+- Galaxy S9+ (Chromium)
+- Multiple device matrix
+
+**Mobile Features:**
+- WebGL availability
+- Touch event handling
+- Orientation changes (portrait/landscape)
+- Performance on mobile
+- Low power mode simulation
+
+**Compatibility Target:** ≥ 80% of tested devices
+
+---
+
+## Running Advanced Tests
+
+### Run Specific Test Categories
+
+```bash
+# Visual regression tests only
+dotnet test --filter "FullyQualifiedName~VisualRegressionTests"
+
+# Performance benchmarks only
+dotnet test --filter "FullyQualifiedName~PerformanceBenchmarkTests"
+
+# Stress tests only
+dotnet test --filter "FullyQualifiedName~StressTests"
+
+# Mobile browser tests only
+dotnet test --filter "FullyQualifiedName~MobileBrowserTests"
+```
+
+### Run All Advanced Tests
+
+```bash
+cd tests/BlazorGL.IntegrationTests
+./run-integration-tests.sh  # Runs all 85 tests
+```
+
+### View Performance Results
+
+Performance tests output detailed metrics to test console:
+
+```bash
+dotnet test --filter "FullyQualifiedName~PerformanceBenchmarkTests" --logger "console;verbosity=detailed"
+```
+
+---
+
+## Next Steps (Optional Enhancements)
+
+- [x] Visual regression tests ✅
+- [x] Performance benchmarks ✅
+- [x] Stress tests ✅
+- [x] Mobile browser testing ✅
+- [ ] WebGL 1.0 fallback testing
+- [ ] GPU benchmark comparison (different hardware)
+- [ ] CI/CD pipeline automation
 
 ## Resources
 
 - [Playwright .NET Documentation](https://playwright.dev/dotnet/)
 - [Blazor WebAssembly Testing](https://docs.microsoft.com/en-us/aspnet/core/blazor/test)
 - [WebGL 2.0 Specification](https://www.khronos.org/registry/webgl/specs/latest/2.0/)
+- [Visual Regression Testing Guide](https://playwright.dev/dotnet/docs/test-snapshots)
