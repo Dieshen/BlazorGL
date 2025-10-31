@@ -22,11 +22,16 @@ BlazorGL.IntegrationTests/
 │   ├── BufferIntegrationTests.cs         # 10 tests - WebGL buffer operations
 │   ├── TextureIntegrationTests.cs        # 10 tests - Texture upload & management
 │   └── RenderingPipelineTests.cs         # 10 tests - Complete rendering pipeline
-├── Advanced Tests (36 tests)
+├── Advanced QA Tests (36 tests)
 │   ├── VisualRegressionTests.cs          #  8 tests - Screenshot comparison
 │   ├── PerformanceBenchmarkTests.cs      #  8 tests - FPS, memory, benchmarks
 │   ├── StressTests.cs                    # 12 tests - Large scenes, stress testing
 │   └── MobileBrowserTests.cs             #  8 tests - iOS/Android compatibility
+├── Enterprise Tests (29 tests)
+│   ├── GPUBenchmarkTests.cs              #  5 tests - GPU comparison, browser benchmarks
+│   ├── WebGL1FallbackTests.cs            #  7 tests - WebGL 1.0 compatibility
+│   ├── PerformanceRegressionTracking.cs  #  6 tests - Automated regression detection
+│   └── ExtendedMobileTests.cs            # 11 tests - 20+ device profiles
 └── TestApp/                               # Blazor WASM test application
     ├── Pages/Index.razor                  # Integration test harness
     ├── Program.cs
@@ -47,7 +52,7 @@ BlazorGL.IntegrationTests/
 | Rendering Pipeline | 10 | Draw calls, state management, performance |
 | **Subtotal** | **49 tests** | **WebGL-dependent code (18%)** |
 
-### Advanced Tests (36 tests)
+### Advanced QA Tests (36 tests)
 
 | Component | Tests | Coverage |
 |-----------|-------|----------|
@@ -57,11 +62,21 @@ BlazorGL.IntegrationTests/
 | Mobile Browsers | 8 | iOS Safari, Android Chrome, touch events |
 | **Subtotal** | **36 tests** | **Quality Assurance & Compatibility** |
 
+### Enterprise Tests (29 tests)
+
+| Component | Tests | Coverage |
+|-----------|-------|----------|
+| GPU Benchmarks | 5 | Cross-browser GPU comparison, hardware vs software |
+| WebGL 1.0 Fallback | 7 | Compatibility, extensions, graceful degradation |
+| Performance Regression | 6 | Automated tracking, baseline comparison, trending |
+| Extended Mobile | 11 | 20+ devices (iPhone, iPad, Pixel, Galaxy, etc.) |
+| **Subtotal** | **29 tests** | **Enterprise Features & Compatibility** |
+
 ### Total
 
-| Total Tests | Core + Advanced | Coverage |
-|-------------|-----------------|----------|
-| **85 tests** | **49 + 36** | **100% + QA** |
+| Total Tests | Core + Advanced + Enterprise | Coverage |
+|-------------|------------------------------|----------|
+| **114 tests** | **49 + 36 + 29** | **100% + Enterprise QA** |
 
 ## Prerequisites
 
@@ -369,50 +384,212 @@ Tests compatibility with iOS and Android devices.
 
 ---
 
-## Running Advanced Tests
+## Enterprise Test Categories
 
-### Run Specific Test Categories
+### GPU Benchmark Tests (5 tests)
 
+Cross-browser and GPU configuration performance comparison.
+
+**Tests:**
+- Chromium + SwiftShader baseline
+- Chromium + Hardware acceleration comparison
+- Firefox performance benchmarking
+- WebKit performance benchmarking
+- Comparative analysis across all browsers
+
+**Features:**
+- GPU renderer identification
+- Draw calls/second measurement
+- Triangle throughput
+- Fill rate calculation
+- Texture bandwidth measurement
+- Overall performance scoring
+- Results saved to `benchmark-results.json`
+
+**Run GPU Benchmarks:**
 ```bash
-# Visual regression tests only
-dotnet test --filter "FullyQualifiedName~VisualRegressionTests"
-
-# Performance benchmarks only
-dotnet test --filter "FullyQualifiedName~PerformanceBenchmarkTests"
-
-# Stress tests only
-dotnet test --filter "FullyQualifiedName~StressTests"
-
-# Mobile browser tests only
-dotnet test --filter "FullyQualifiedName~MobileBrowserTests"
+dotnet test --filter "FullyQualifiedName~GPUBenchmarkTests" --logger "console;verbosity=detailed"
 ```
 
-### Run All Advanced Tests
+### WebGL 1.0 Fallback Tests (7 tests)
 
+WebGL 1.0 compatibility and graceful degradation.
+
+**Tests:**
+- WebGL 1.0 context availability
+- Basic rendering functionality
+- Extension availability (float textures, depth texture, VAO, instancing, anisotropic filtering)
+- Texture format support (RGBA, RGB, LUMINANCE)
+- WebGL limits and capabilities validation
+- Multiple context support
+- Performance comparison with WebGL 2.0
+
+**Features:**
+- Automatic fallback detection
+- Extension enumeration
+- Minimum requirement validation
+- Compatibility reporting
+
+**Run Fallback Tests:**
 ```bash
-cd tests/BlazorGL.IntegrationTests
-./run-integration-tests.sh  # Runs all 85 tests
+dotnet test --filter "FullyQualifiedName~WebGL1FallbackTests"
 ```
 
-### View Performance Results
+### Performance Regression Tracking (6 tests)
 
-Performance tests output detailed metrics to test console:
+Automated performance regression detection and trending.
 
+**Metrics Tracked:**
+- Draw call performance (calls/sec)
+- Rendering throughput (FPS)
+- Buffer upload speed (MB/sec)
+- Shader compilation time (ms)
+- Memory usage (MB)
+
+**Features:**
+- Baseline management system
+- Historical tracking (last 100 runs)
+- Automated regression alerts (10% threshold)
+- Trend analysis (5-run moving average)
+- Performance report generation
+- Data persisted to:
+  - `performance-baseline.json` - Reference baselines
+  - `performance-history.json` - Historical data
+
+**Run Regression Tests:**
 ```bash
-dotnet test --filter "FullyQualifiedName~PerformanceBenchmarkTests" --logger "console;verbosity=detailed"
+dotnet test --filter "FullyQualifiedName~PerformanceRegressionTracking" --logger "console;verbosity=detailed"
+```
+
+**Update Baselines (after intentional changes):**
+```bash
+# Delete old baselines to set new ones
+rm performance-baseline.json
+dotnet test --filter "FullyQualifiedName~PerformanceRegressionTracking"
+```
+
+### Extended Mobile Tests (11 tests)
+
+Comprehensive mobile device matrix testing.
+
+**Device Coverage (20+ devices):**
+
+**iOS Phones (10 devices):**
+- iPhone 13, 13 Pro, 13 Pro Max, 13 Mini
+- iPhone 12, 12 Pro
+- iPhone SE
+- iPhone 11, 11 Pro
+- iPhone XR
+
+**Android Phones (7 devices):**
+- Pixel 5, 4, 3
+- Galaxy S9+, S8
+- Galaxy Tab S4
+- Nexus 7
+
+**Tablets (3 devices):**
+- iPad Pro
+- iPad (gen 7)
+- iPad Mini
+
+**Tests:**
+- Individual device compatibility (Theory tests)
+- Comprehensive device matrix report
+- Screen size categories (small/medium/large phone, small/large tablet)
+- WebGL version detection
+- Performance scoring per device
+- Viewport and DPR validation
+
+**Run Extended Mobile Tests:**
+```bash
+dotnet test --filter "FullyQualifiedName~ExtendedMobileTests" --logger "console;verbosity=detailed"
 ```
 
 ---
 
-## Next Steps (Optional Enhancements)
+## Running Tests
+
+### Run All Tests (114 total)
+
+```bash
+cd tests/BlazorGL.IntegrationTests
+./run-integration-tests.sh  # Runs all 114 tests (~4-5 minutes)
+```
+
+### Run Specific Test Categories
+
+**Core Integration Tests:**
+```bash
+dotnet test --filter "FullyQualifiedName~RendererIntegrationTests"
+dotnet test --filter "FullyQualifiedName~ShaderIntegrationTests"
+dotnet test --filter "FullyQualifiedName~BufferIntegrationTests"
+dotnet test --filter "FullyQualifiedName~TextureIntegrationTests"
+dotnet test --filter "FullyQualifiedName~RenderingPipelineTests"
+```
+
+**Advanced QA Tests:**
+```bash
+dotnet test --filter "FullyQualifiedName~VisualRegressionTests"
+dotnet test --filter "FullyQualifiedName~PerformanceBenchmarkTests"
+dotnet test --filter "FullyQualifiedName~StressTests"
+dotnet test --filter "FullyQualifiedName~MobileBrowserTests"
+```
+
+**Enterprise Tests:**
+```bash
+dotnet test --filter "FullyQualifiedName~GPUBenchmarkTests" --logger "console;verbosity=detailed"
+dotnet test --filter "FullyQualifiedName~WebGL1FallbackTests"
+dotnet test --filter "FullyQualifiedName~PerformanceRegressionTracking" --logger "console;verbosity=detailed"
+dotnet test --filter "FullyQualifiedName~ExtendedMobileTests" --logger "console;verbosity=detailed"
+```
+
+### View Detailed Performance Results
+
+```bash
+# GPU benchmarks with comparison
+dotnet test --filter "FullyQualifiedName~GPUBenchmarkTests" --logger "console;verbosity=detailed"
+
+# Performance regression tracking
+dotnet test --filter "FullyQualifiedName~PerformanceRegressionTracking" --logger "console;verbosity=detailed"
+
+# Mobile device matrix
+dotnet test --filter "FullyQualifiedName~ExtendedMobileTests" --logger "console;verbosity=detailed"
+```
+
+---
+
+## Test Data Files
+
+Integration tests generate several data files for tracking and comparison:
+
+| File | Purpose | Location |
+|------|---------|----------|
+| `screenshots/baseline/` | Visual regression baselines | Test directory |
+| `screenshots/actual/` | Current test screenshots | Test directory |
+| `screenshots/diff/` | Difference images | Test directory |
+| `benchmark-results.json` | GPU benchmark results | Test directory |
+| `performance-baseline.json` | Performance baselines | Test directory |
+| `performance-history.json` | Historical performance data | Test directory |
+
+**Note:** Add these to `.gitignore` if you don't want to commit test artifacts.
+
+---
+
+## Next Steps (All Completed!)
 
 - [x] Visual regression tests ✅
 - [x] Performance benchmarks ✅
 - [x] Stress tests ✅
 - [x] Mobile browser testing ✅
-- [ ] WebGL 1.0 fallback testing
-- [ ] GPU benchmark comparison (different hardware)
-- [ ] CI/CD pipeline automation
+- [x] WebGL 1.0 fallback testing ✅
+- [x] GPU benchmark comparison ✅
+- [x] Automated performance regression tracking ✅
+- [x] Extended device profiles (20+ devices) ✅
+
+**Optional Future Enhancements:**
+- [ ] CI/CD pipeline automation (GitHub Actions)
+- [ ] Real device testing (BrowserStack/Sauce Labs)
+- [ ] WebGPU experimental support testing
 
 ## Resources
 
