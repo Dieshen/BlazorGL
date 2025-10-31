@@ -116,6 +116,81 @@ public class RenderContext : IDisposable
     }
 
     /// <summary>
+    /// Updates instance buffers for instanced mesh
+    /// </summary>
+    public void UpdateInstanceBuffers(GeometryBuffers buffers, InstancedMesh instancedMesh)
+    {
+        _gl.BindVertexArray(buffers.VAO);
+
+        // Update instance matrix buffer
+        if (instancedMesh.MatricesNeedUpdate && instancedMesh.InstanceMatrices != null)
+        {
+            if (buffers.InstanceMatrixBuffer == 0)
+            {
+                buffers.InstanceMatrixBuffer = _gl.CreateBuffer();
+                buffers.IsInstanced = true;
+            }
+
+            _gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.InstanceMatrixBuffer);
+
+            // Convert matrices to float array (each matrix is 16 floats)
+            var matrixData = new float[instancedMesh.Count * 16];
+            for (int i = 0; i < instancedMesh.Count; i++)
+            {
+                var matrix = instancedMesh.InstanceMatrices[i];
+                int offset = i * 16;
+
+                matrixData[offset + 0] = matrix.M11;
+                matrixData[offset + 1] = matrix.M12;
+                matrixData[offset + 2] = matrix.M13;
+                matrixData[offset + 3] = matrix.M14;
+                matrixData[offset + 4] = matrix.M21;
+                matrixData[offset + 5] = matrix.M22;
+                matrixData[offset + 6] = matrix.M23;
+                matrixData[offset + 7] = matrix.M24;
+                matrixData[offset + 8] = matrix.M31;
+                matrixData[offset + 9] = matrix.M32;
+                matrixData[offset + 10] = matrix.M33;
+                matrixData[offset + 11] = matrix.M34;
+                matrixData[offset + 12] = matrix.M41;
+                matrixData[offset + 13] = matrix.M42;
+                matrixData[offset + 14] = matrix.M43;
+                matrixData[offset + 15] = matrix.M44;
+            }
+
+            _gl.BufferData(BufferTargetARB.ArrayBuffer, matrixData, BufferUsageARB.DynamicDraw);
+            instancedMesh.MatricesNeedUpdate = false;
+        }
+
+        // Update instance color buffer (optional)
+        if (instancedMesh.ColorsNeedUpdate && instancedMesh.InstanceColors != null)
+        {
+            if (buffers.InstanceColorBuffer == 0)
+            {
+                buffers.InstanceColorBuffer = _gl.CreateBuffer();
+            }
+
+            _gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.InstanceColorBuffer);
+
+            // Convert colors to float array
+            var colorData = new float[instancedMesh.Count * 3];
+            for (int i = 0; i < instancedMesh.Count; i++)
+            {
+                var color = instancedMesh.InstanceColors[i];
+                int offset = i * 3;
+                colorData[offset + 0] = color.X;
+                colorData[offset + 1] = color.Y;
+                colorData[offset + 2] = color.Z;
+            }
+
+            _gl.BufferData(BufferTargetARB.ArrayBuffer, colorData, BufferUsageARB.DynamicDraw);
+            instancedMesh.ColorsNeedUpdate = false;
+        }
+
+        _gl.BindVertexArray(0);
+    }
+
+    /// <summary>
     /// Creates WebGL buffers for geometry
     /// </summary>
     private GeometryBuffers CreateGeometryBuffers(Geometry geometry)
@@ -451,4 +526,9 @@ public class GeometryBuffers
     public uint UVBuffer { get; set; }
     public uint IndexBuffer { get; set; }
     public int IndexCount { get; set; }
+
+    // Instance buffers for instanced rendering
+    public uint InstanceMatrixBuffer { get; set; }
+    public uint InstanceColorBuffer { get; set; }
+    public bool IsInstanced { get; set; }
 }

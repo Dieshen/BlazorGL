@@ -174,7 +174,11 @@ public class Renderer : IDisposable
         // Render all items
         foreach (var item in renderList)
         {
-            if (item.Object is Mesh mesh)
+            if (item.Object is InstancedMesh instancedMesh)
+            {
+                RenderInstancedMesh(instancedMesh, scene, camera, lights);
+            }
+            else if (item.Object is Mesh mesh)
             {
                 RenderMesh(mesh, scene, camera, lights);
             }
@@ -480,6 +484,114 @@ public class Renderer : IDisposable
             _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, null);
             Stats.DrawCalls++;
             Stats.Triangles += buffers.IndexCount / 3;
+        }
+    }
+
+    /// <summary>
+    /// Renders an instanced mesh using GPU instancing
+    /// </summary>
+    private void RenderInstancedMesh(InstancedMesh instancedMesh, Scene scene, Camera camera, List<Light> lights)
+    {
+        var material = instancedMesh.Material;
+        var geometry = instancedMesh.Geometry;
+
+        // Compile shader if needed
+        if (material.NeedsCompile || !material.Shader.IsCompiled)
+        {
+            material.OnBeforeCompile(material.Shader);
+            material.Shader.Compile(_context.GL);
+            material.NeedsCompile = false;
+        }
+
+        // Use shader
+        if (_state.CurrentShader != material.Shader)
+        {
+            material.Shader.Use(_context.GL);
+            _state.CurrentShader = material.Shader;
+        }
+
+        // Update material state
+        ApplyMaterialState(material);
+
+        // Get geometry buffers
+        var buffers = _context.GetGeometryBuffers(geometry);
+
+        // Update instance buffers
+        _context.UpdateInstanceBuffers(buffers, instancedMesh);
+
+        // Bind VAO
+        if (_state.CurrentVAO != buffers.VAO)
+        {
+            _context.GL.BindVertexArray(buffers.VAO);
+            _state.CurrentVAO = buffers.VAO;
+
+            // Set up standard attributes
+            SetupAttributes(material.Shader, buffers);
+
+            // Set up instance attributes (matrices)
+            SetupInstanceAttributes(material.Shader, buffers);
+        }
+
+        // Set standard uniforms (use identity for model matrix since instances have their own)
+        var tempMesh = new Mesh(geometry, material);
+        SetStandardUniforms(material.Shader, tempMesh, camera, lights, scene);
+
+        // Set material uniforms
+        material.UpdateUniforms();
+        SetMaterialUniforms(material);
+
+        // Draw instanced
+        if (buffers.IndexCount > 0)
+        {
+            _context.GL.DrawElementsInstanced(
+                PrimitiveType.Triangles,
+                (uint)buffers.IndexCount,
+                DrawElementsType.UnsignedInt,
+                null,
+                (uint)instancedMesh.Count
+            );
+            Stats.DrawCalls++;
+            Stats.Triangles += buffers.IndexCount / 3 * instancedMesh.Count;
+        }
+    }
+
+    /// <summary>
+    /// Sets up instance attributes for instanced rendering
+    /// </summary>
+    private void SetupInstanceAttributes(Shaders.Shader shader, GeometryBuffers buffers)
+    {
+        var gl = _context.GL;
+
+        if (buffers.InstanceMatrixBuffer > 0)
+        {
+            // Instance matrix is passed as 4 vec4 attributes (mat4 = 4 columns)
+            gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.InstanceMatrixBuffer);
+
+            int matrixLocation = shader.GetAttributeLocation(gl, "instanceMatrix");
+            if (matrixLocation >= 0)
+            {
+                // Each column of the matrix is a vec4
+                for (int i = 0; i < 4; i++)
+                {
+                    uint loc = (uint)(matrixLocation + i);
+                    gl.EnableVertexAttribArray(loc);
+                    gl.VertexAttribPointer(loc, 4, VertexAttribPointerType.Float, false, 16 * sizeof(float), (void*)(i * 4 * sizeof(float)));
+                    gl.VertexAttribDivisor(loc, 1); // Advance once per instance
+                }
+            }
+        }
+
+        if (buffers.InstanceColorBuffer > 0)
+        {
+            gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.InstanceColorBuffer);
+
+            int colorLocation = shader.GetAttributeLocation(gl, "instanceColor");
+            if (colorLocation >= 0)
+            {
+                gl.EnableVertexAttribArray((uint)colorLocation);
+                gl.VertexAttribPointer((uint)colorLocation, 3, VertexAttribPointerType.Float, false, 0, null);
+                gl.VertexAttribDivisor((uint)colorLocation, 1); // Advance once per instance
+            }
         }
     }
 
