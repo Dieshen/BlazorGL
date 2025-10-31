@@ -1,0 +1,360 @@
+@page "/"
+@using BlazorGL.Core.Rendering
+@using BlazorGL.Core.Core
+@using BlazorGL.Core.Cameras
+@using BlazorGL.Core.Lights
+@using BlazorGL.Core.Geometries
+@using BlazorGL.Core.Materials
+@using System.Numerics
+@inject IJSRuntime JSRuntime
+
+<PageTitle>BlazorGL Integration Tests</PageTitle>
+
+<div class="test-container">
+    <h1>BlazorGL Integration Tests</h1>
+
+    <canvas @ref="_canvasRef" id="glCanvas" width="800" height="600" style="border: 1px solid black;"></canvas>
+
+    <div class="test-status" id="testStatus">
+        <h2>Test Status</h2>
+        <ul id="testResults">
+            @foreach (var result in _testResults)
+            {
+                <li class="@(result.Passed ? "passed" : "failed")" data-test="@result.Name">
+                    [@(result.Passed ? "✓" : "✗")] @result.Name: @result.Message
+                </li>
+            }
+        </ul>
+    </div>
+
+    <div class="test-data" id="testData" data-initialized="@_initialized" data-rendered="@_rendered"></div>
+</div>
+
+@code {
+    private ElementReference _canvasRef;
+    private Renderer? _renderer;
+    private Scene? _scene;
+    private PerspectiveCamera? _camera;
+    private List<TestResult> _testResults = new();
+    private bool _initialized = false;
+    private bool _rendered = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await RunIntegrationTests();
+            StateHasChanged();
+        }
+    }
+
+    private async Task RunIntegrationTests()
+    {
+        try
+        {
+            // Test 1: Renderer Initialization
+            await TestRendererInitialization();
+
+            // Test 2: Scene Creation
+            TestSceneCreation();
+
+            // Test 3: Basic Rendering
+            await TestBasicRendering();
+
+            // Test 4: Geometry Buffers
+            await TestGeometryBuffers();
+
+            // Test 5: Shader Compilation
+            await TestShaderCompilation();
+
+            // Test 6: Texture Upload
+            await TestTextureUpload();
+
+            // Test 7: Multiple Objects
+            await TestMultipleObjects();
+
+            // Test 8: Light Integration
+            await TestLightIntegration();
+
+            _initialized = true;
+            _rendered = true;
+        }
+        catch (Exception ex)
+        {
+            AddTestResult("Overall", false, $"Exception: {ex.Message}");
+        }
+    }
+
+    private async Task TestRendererInitialization()
+    {
+        try
+        {
+            _renderer = new Renderer();
+            await _renderer.InitializeAsync(_canvasRef, JSRuntime);
+
+            AddTestResult("Renderer Initialization",
+                _renderer.Width > 0 && _renderer.Height > 0,
+                $"Renderer initialized: {_renderer.Width}x{_renderer.Height}");
+        }
+        catch (Exception ex)
+        {
+            AddTestResult("Renderer Initialization", false, ex.Message);
+        }
+    }
+
+    private void TestSceneCreation()
+    {
+        try
+        {
+            _scene = new Scene();
+            _camera = new PerspectiveCamera(75, 800.0 / 600.0, 0.1, 1000);
+            _camera.Position = new Vector3(0, 0, 5);
+
+            AddTestResult("Scene Creation",
+                _scene != null && _camera != null,
+                "Scene and camera created successfully");
+        }
+        catch (Exception ex)
+        {
+            AddTestResult("Scene Creation", false, ex.Message);
+        }
+    }
+
+    private async Task TestBasicRendering()
+    {
+        try
+        {
+            if (_renderer == null || _scene == null || _camera == null)
+            {
+                AddTestResult("Basic Rendering", false, "Prerequisites not met");
+                return;
+            }
+
+            var geometry = new BoxGeometry(1, 1, 1);
+            var material = new BasicMaterial { Color = new BlazorGL.Core.Math.Color(1, 0, 0) };
+            var cube = new Mesh(geometry, material);
+            _scene.Add(cube);
+
+            await _renderer.RenderAsync(_scene, _camera);
+
+            AddTestResult("Basic Rendering", true, "Successfully rendered cube");
+        }
+        catch (Exception ex)
+        {
+            AddTestResult("Basic Rendering", false, ex.Message);
+        }
+    }
+
+    private async Task TestGeometryBuffers()
+    {
+        try
+        {
+            if (_renderer == null || _scene == null || _camera == null)
+            {
+                AddTestResult("Geometry Buffers", false, "Prerequisites not met");
+                return;
+            }
+
+            // Test multiple geometry types
+            var sphere = new Mesh(new SphereGeometry(0.5), new BasicMaterial());
+            sphere.Position = new Vector3(-2, 0, 0);
+            _scene.Add(sphere);
+
+            var cylinder = new Mesh(new CylinderGeometry(0.5, 0.5, 1), new BasicMaterial());
+            cylinder.Position = new Vector3(2, 0, 0);
+            _scene.Add(cylinder);
+
+            await _renderer.RenderAsync(_scene, _camera);
+
+            AddTestResult("Geometry Buffers", true, "Multiple geometry types rendered");
+        }
+        catch (Exception ex)
+        {
+            AddTestResult("Geometry Buffers", false, ex.Message);
+        }
+    }
+
+    private async Task TestShaderCompilation()
+    {
+        try
+        {
+            if (_renderer == null || _scene == null || _camera == null)
+            {
+                AddTestResult("Shader Compilation", false, "Prerequisites not met");
+                return;
+            }
+
+            // Test different material types (each requires different shaders)
+            var phongMaterial = new PhongMaterial
+            {
+                Color = new BlazorGL.Core.Math.Color(0, 1, 0),
+                Shininess = 30
+            };
+
+            var phongCube = new Mesh(new BoxGeometry(0.5, 0.5, 0.5), phongMaterial);
+            phongCube.Position = new Vector3(0, 2, 0);
+            _scene.Add(phongCube);
+
+            await _renderer.RenderAsync(_scene, _camera);
+
+            AddTestResult("Shader Compilation", true, "Phong shader compiled and used");
+        }
+        catch (Exception ex)
+        {
+            AddTestResult("Shader Compilation", false, ex.Message);
+        }
+    }
+
+    private async Task TestTextureUpload()
+    {
+        try
+        {
+            if (_renderer == null || _scene == null || _camera == null)
+            {
+                AddTestResult("Texture Upload", false, "Prerequisites not met");
+                return;
+            }
+
+            // Create a simple procedural texture
+            var texture = new BlazorGL.Core.Textures.Texture();
+            var materialWithTexture = new BasicMaterial { Map = texture };
+            var texturedCube = new Mesh(new BoxGeometry(0.8, 0.8, 0.8), materialWithTexture);
+            texturedCube.Position = new Vector3(0, -2, 0);
+            _scene.Add(texturedCube);
+
+            await _renderer.RenderAsync(_scene, _camera);
+
+            AddTestResult("Texture Upload", true, "Texture created and applied");
+        }
+        catch (Exception ex)
+        {
+            AddTestResult("Texture Upload", false, ex.Message);
+        }
+    }
+
+    private async Task TestMultipleObjects()
+    {
+        try
+        {
+            if (_renderer == null || _scene == null || _camera == null)
+            {
+                AddTestResult("Multiple Objects", false, "Prerequisites not met");
+                return;
+            }
+
+            // Create a grid of objects to test batching
+            for (int x = -5; x <= 5; x += 2)
+            {
+                for (int y = -5; y <= 5; y += 2)
+                {
+                    var smallCube = new Mesh(
+                        new BoxGeometry(0.3, 0.3, 0.3),
+                        new BasicMaterial { Color = new BlazorGL.Core.Math.Color(
+                            (float)Random.Shared.NextDouble(),
+                            (float)Random.Shared.NextDouble(),
+                            (float)Random.Shared.NextDouble()
+                        )}
+                    );
+                    smallCube.Position = new Vector3(x, y, -10);
+                    _scene.Add(smallCube);
+                }
+            }
+
+            await _renderer.RenderAsync(_scene, _camera);
+
+            AddTestResult("Multiple Objects", true, $"Rendered {_scene.Children.Count} objects");
+        }
+        catch (Exception ex)
+        {
+            AddTestResult("Multiple Objects", false, ex.Message);
+        }
+    }
+
+    private async Task TestLightIntegration()
+    {
+        try
+        {
+            if (_renderer == null || _scene == null || _camera == null)
+            {
+                AddTestResult("Light Integration", false, "Prerequisites not met");
+                return;
+            }
+
+            // Add various light types
+            var ambientLight = new AmbientLight(new BlazorGL.Core.Math.Color(0.2, 0.2, 0.2));
+            _scene.Add(ambientLight);
+
+            var directionalLight = new DirectionalLight(new BlazorGL.Core.Math.Color(1, 1, 1), 0.8);
+            directionalLight.Position = new Vector3(5, 10, 5);
+            _scene.Add(directionalLight);
+
+            var pointLight = new PointLight(new BlazorGL.Core.Math.Color(1, 0.5, 0), 1.0, 100);
+            pointLight.Position = new Vector3(-5, 5, 5);
+            _scene.Add(pointLight);
+
+            await _renderer.RenderAsync(_scene, _camera);
+
+            AddTestResult("Light Integration", true, "Multiple lights rendered");
+        }
+        catch (Exception ex)
+        {
+            AddTestResult("Light Integration", false, ex.Message);
+        }
+    }
+
+    private void AddTestResult(string name, bool passed, string message)
+    {
+        _testResults.Add(new TestResult
+        {
+            Name = name,
+            Passed = passed,
+            Message = message
+        });
+    }
+
+    private class TestResult
+    {
+        public string Name { get; set; } = "";
+        public bool Passed { get; set; }
+        public string Message { get; set; } = "";
+    }
+}
+
+<style>
+    .test-container {
+        padding: 20px;
+        font-family: Arial, sans-serif;
+    }
+
+    #glCanvas {
+        display: block;
+        margin: 20px 0;
+    }
+
+    .test-status {
+        margin-top: 20px;
+    }
+
+    #testResults {
+        list-style-type: none;
+        padding: 0;
+    }
+
+    #testResults li {
+        padding: 8px;
+        margin: 4px 0;
+        border-radius: 4px;
+    }
+
+    #testResults li.passed {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    #testResults li.failed {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+</style>
