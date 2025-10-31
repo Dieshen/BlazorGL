@@ -182,6 +182,10 @@ public class Renderer : IDisposable
             {
                 RenderPoints(points, camera, lights);
             }
+            else if (item.Object is Sprite sprite)
+            {
+                RenderSprite(sprite, camera, lights);
+            }
         }
 
         Stats.EndFrame();
@@ -215,6 +219,10 @@ public class Renderer : IDisposable
             isRenderable = true;
         }
         else if (obj is Points points && points.Geometry != null && points.Material != null)
+        {
+            isRenderable = true;
+        }
+        else if (obj is Sprite sprite && sprite.Material != null)
         {
             isRenderable = true;
         }
@@ -533,6 +541,60 @@ public class Renderer : IDisposable
     }
 
     /// <summary>
+    /// Renders a 2D sprite (billboard)
+    /// </summary>
+    private void RenderSprite(Sprite sprite, Camera camera, List<Light> lights)
+    {
+        var material = sprite.Material;
+        var geometry = sprite.Geometry;
+
+        // Compile shader if needed
+        if (material.NeedsCompile || !material.Shader.IsCompiled)
+        {
+            material.OnBeforeCompile(material.Shader);
+            material.Shader.Compile(_context.GL);
+            material.NeedsCompile = false;
+        }
+
+        // Use shader
+        if (_state.CurrentShader != material.Shader)
+        {
+            material.Shader.Use(_context.GL);
+            _state.CurrentShader = material.Shader;
+        }
+
+        // Update material state
+        ApplyMaterialState(material);
+
+        // Get geometry buffers
+        var buffers = _context.GetGeometryBuffers(geometry);
+
+        // Bind VAO
+        if (_state.CurrentVAO != buffers.VAO)
+        {
+            _context.GL.BindVertexArray(buffers.VAO);
+            _state.CurrentVAO = buffers.VAO;
+
+            // Set up attributes
+            SetupAttributes(material.Shader, buffers);
+        }
+
+        // Set sprite uniforms
+        SetLineUniforms(material.Shader, sprite, camera);
+
+        // Set material uniforms
+        material.UpdateUniforms();
+        SetMaterialUniforms(material);
+
+        // Draw sprite quad
+        if (buffers.IndexCount > 0)
+        {
+            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, null);
+            Stats.DrawCalls++;
+        }
+    }
+
+    /// <summary>
     /// Sets up vertex attributes
     /// </summary>
     private void SetupAttributes(Shaders.Shader shader, GeometryBuffers buffers)
@@ -641,7 +703,7 @@ public class Renderer : IDisposable
             _context.SetUniform(shader.GetUniformLocation(gl, $"pointLights[{i}].decay"), light.Decay);
         }
 
-        // Spot lights (similar pattern)
+        // Spot lights
         var spotLights = lights.OfType<SpotLight>().Take(4).ToArray();
         _context.SetUniform(shader.GetUniformLocation(gl, "numSpotLights"), spotLights.Length);
 
@@ -657,6 +719,33 @@ public class Renderer : IDisposable
             _context.SetUniform(shader.GetUniformLocation(gl, $"spotLights[{i}].angle"), light.Angle);
             _context.SetUniform(shader.GetUniformLocation(gl, $"spotLights[{i}].penumbra"), light.Penumbra);
             _context.SetUniform(shader.GetUniformLocation(gl, $"spotLights[{i}].decay"), light.Decay);
+        }
+
+        // Hemisphere lights
+        var hemiLights = lights.OfType<HemisphereLight>().Take(4).ToArray();
+        _context.SetUniform(shader.GetUniformLocation(gl, "numHemisphereLights"), hemiLights.Length);
+
+        for (int i = 0; i < hemiLights.Length; i++)
+        {
+            var light = hemiLights[i];
+            _context.SetUniform(shader.GetUniformLocation(gl, $"hemisphereLights[{i}].skyColor"), light.SkyColor.ToVector3());
+            _context.SetUniform(shader.GetUniformLocation(gl, $"hemisphereLights[{i}].groundColor"), light.GroundColor.ToVector3());
+            _context.SetUniform(shader.GetUniformLocation(gl, $"hemisphereLights[{i}].intensity"), light.Intensity);
+        }
+
+        // Rect area lights
+        var rectLights = lights.OfType<RectAreaLight>().Take(4).ToArray();
+        _context.SetUniform(shader.GetUniformLocation(gl, "numRectAreaLights"), rectLights.Length);
+
+        for (int i = 0; i < rectLights.Length; i++)
+        {
+            var light = rectLights[i];
+            var position = Vector3.Transform(Vector3.Zero, light.WorldMatrix);
+            _context.SetUniform(shader.GetUniformLocation(gl, $"rectAreaLights[{i}].position"), position);
+            _context.SetUniform(shader.GetUniformLocation(gl, $"rectAreaLights[{i}].color"), light.Color.ToVector3());
+            _context.SetUniform(shader.GetUniformLocation(gl, $"rectAreaLights[{i}].intensity"), light.Intensity);
+            _context.SetUniform(shader.GetUniformLocation(gl, $"rectAreaLights[{i}].width"), light.Width);
+            _context.SetUniform(shader.GetUniformLocation(gl, $"rectAreaLights[{i}].height"), light.Height);
         }
     }
 
