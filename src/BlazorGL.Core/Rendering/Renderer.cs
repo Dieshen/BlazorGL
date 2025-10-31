@@ -162,29 +162,72 @@ public class Renderer : IDisposable
         // Render all items
         foreach (var item in renderList)
         {
-            RenderMesh(item.Mesh, scene, camera, lights);
+            if (item.Object is Mesh mesh)
+            {
+                RenderMesh(mesh, scene, camera, lights);
+            }
+            else if (item.Object is Line line)
+            {
+                RenderLine(line, camera, lights);
+            }
+            else if (item.Object is LineSegments lineSegments)
+            {
+                RenderLineSegments(lineSegments, camera, lights);
+            }
+            else if (item.Object is LineLoop lineLoop)
+            {
+                RenderLineLoop(lineLoop, camera, lights);
+            }
+            else if (item.Object is Points points)
+            {
+                RenderPoints(points, camera, lights);
+            }
         }
 
         Stats.EndFrame();
     }
 
     /// <summary>
-    /// Collects meshes to render
+    /// Collects renderable objects (meshes, lines, points, etc.)
     /// </summary>
     private void CollectRenderItems(Object3D obj, List<RenderItem> renderList)
     {
         if (!obj.Visible)
             return;
 
+        bool isRenderable = false;
+
+        // Check if object is renderable
         if (obj is Mesh mesh && mesh.Geometry != null && mesh.Material != null)
         {
+            isRenderable = true;
+        }
+        else if (obj is Line line && line.Geometry != null && line.Material != null)
+        {
+            isRenderable = true;
+        }
+        else if (obj is LineSegments lineSegments && lineSegments.Geometry != null && lineSegments.Material != null)
+        {
+            isRenderable = true;
+        }
+        else if (obj is LineLoop lineLoop && lineLoop.Geometry != null && lineLoop.Material != null)
+        {
+            isRenderable = true;
+        }
+        else if (obj is Points points && points.Geometry != null && points.Material != null)
+        {
+            isRenderable = true;
+        }
+
+        if (isRenderable)
+        {
             // Calculate distance from camera for sorting
-            var worldPos = Vector3.Transform(Vector3.Zero, mesh.WorldMatrix);
+            var worldPos = Vector3.Transform(Vector3.Zero, obj.WorldMatrix);
             float z = worldPos.Z;
 
             renderList.Add(new RenderItem
             {
-                Mesh = mesh,
+                Object = obj,
                 Z = z
             });
         }
@@ -247,6 +290,245 @@ public class Renderer : IDisposable
             _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, null);
             Stats.DrawCalls++;
             Stats.Triangles += buffers.IndexCount / 3;
+        }
+    }
+
+    /// <summary>
+    /// Renders a continuous line
+    /// </summary>
+    private void RenderLine(Line line, Camera camera, List<Light> lights)
+    {
+        var material = line.Material;
+        var geometry = line.Geometry;
+
+        // Compile shader if needed
+        if (material.NeedsCompile || !material.Shader.IsCompiled)
+        {
+            material.OnBeforeCompile(material.Shader);
+            material.Shader.Compile(_context.GL);
+            material.NeedsCompile = false;
+        }
+
+        // Use shader
+        if (_state.CurrentShader != material.Shader)
+        {
+            material.Shader.Use(_context.GL);
+            _state.CurrentShader = material.Shader;
+        }
+
+        // Update material state
+        ApplyMaterialState(material);
+
+        // Get geometry buffers
+        var buffers = _context.GetGeometryBuffers(geometry);
+
+        // Bind VAO
+        if (_state.CurrentVAO != buffers.VAO)
+        {
+            _context.GL.BindVertexArray(buffers.VAO);
+            _state.CurrentVAO = buffers.VAO;
+
+            // Set up attributes
+            SetupAttributes(material.Shader, buffers);
+        }
+
+        // Set line uniforms
+        SetLineUniforms(material.Shader, line, camera);
+
+        // Set material uniforms
+        material.UpdateUniforms();
+        SetMaterialUniforms(material);
+
+        // Draw as line strip
+        int vertexCount = geometry.Vertices.Length / 3;
+        if (vertexCount > 0)
+        {
+            _context.GL.DrawArrays(PrimitiveType.LineStrip, 0, (uint)vertexCount);
+            Stats.DrawCalls++;
+        }
+    }
+
+    /// <summary>
+    /// Renders disconnected line segments
+    /// </summary>
+    private void RenderLineSegments(LineSegments lineSegments, Camera camera, List<Light> lights)
+    {
+        var material = lineSegments.Material;
+        var geometry = lineSegments.Geometry;
+
+        // Compile shader if needed
+        if (material.NeedsCompile || !material.Shader.IsCompiled)
+        {
+            material.OnBeforeCompile(material.Shader);
+            material.Shader.Compile(_context.GL);
+            material.NeedsCompile = false;
+        }
+
+        // Use shader
+        if (_state.CurrentShader != material.Shader)
+        {
+            material.Shader.Use(_context.GL);
+            _state.CurrentShader = material.Shader;
+        }
+
+        // Update material state
+        ApplyMaterialState(material);
+
+        // Get geometry buffers
+        var buffers = _context.GetGeometryBuffers(geometry);
+
+        // Bind VAO
+        if (_state.CurrentVAO != buffers.VAO)
+        {
+            _context.GL.BindVertexArray(buffers.VAO);
+            _state.CurrentVAO = buffers.VAO;
+
+            // Set up attributes
+            SetupAttributes(material.Shader, buffers);
+        }
+
+        // Set line uniforms
+        SetLineUniforms(material.Shader, lineSegments, camera);
+
+        // Set material uniforms
+        material.UpdateUniforms();
+        SetMaterialUniforms(material);
+
+        // Draw as separate line segments
+        int vertexCount = geometry.Vertices.Length / 3;
+        if (vertexCount > 0)
+        {
+            _context.GL.DrawArrays(PrimitiveType.Lines, 0, (uint)vertexCount);
+            Stats.DrawCalls++;
+        }
+    }
+
+    /// <summary>
+    /// Renders a closed line loop
+    /// </summary>
+    private void RenderLineLoop(LineLoop lineLoop, Camera camera, List<Light> lights)
+    {
+        var material = lineLoop.Material;
+        var geometry = lineLoop.Geometry;
+
+        // Compile shader if needed
+        if (material.NeedsCompile || !material.Shader.IsCompiled)
+        {
+            material.OnBeforeCompile(material.Shader);
+            material.Shader.Compile(_context.GL);
+            material.NeedsCompile = false;
+        }
+
+        // Use shader
+        if (_state.CurrentShader != material.Shader)
+        {
+            material.Shader.Use(_context.GL);
+            _state.CurrentShader = material.Shader;
+        }
+
+        // Update material state
+        ApplyMaterialState(material);
+
+        // Get geometry buffers
+        var buffers = _context.GetGeometryBuffers(geometry);
+
+        // Bind VAO
+        if (_state.CurrentVAO != buffers.VAO)
+        {
+            _context.GL.BindVertexArray(buffers.VAO);
+            _state.CurrentVAO = buffers.VAO;
+
+            // Set up attributes
+            SetupAttributes(material.Shader, buffers);
+        }
+
+        // Set line uniforms
+        SetLineUniforms(material.Shader, lineLoop, camera);
+
+        // Set material uniforms
+        material.UpdateUniforms();
+        SetMaterialUniforms(material);
+
+        // Draw as line loop
+        int vertexCount = geometry.Vertices.Length / 3;
+        if (vertexCount > 0)
+        {
+            _context.GL.DrawArrays(PrimitiveType.LineLoop, 0, (uint)vertexCount);
+            Stats.DrawCalls++;
+        }
+    }
+
+    /// <summary>
+    /// Sets line-specific uniforms
+    /// </summary>
+    private void SetLineUniforms(Shaders.Shader shader, Object3D lineObject, Camera camera)
+    {
+        var gl = _context.GL;
+
+        // Matrices
+        var modelMatrix = lineObject.WorldMatrix;
+        var viewMatrix = camera.ViewMatrix;
+        var projectionMatrix = camera.ProjectionMatrix;
+        var modelViewMatrix = modelMatrix * viewMatrix;
+
+        _context.SetUniform(shader.GetUniformLocation(gl, "modelMatrix"), modelMatrix);
+        _context.SetUniform(shader.GetUniformLocation(gl, "viewMatrix"), viewMatrix);
+        _context.SetUniform(shader.GetUniformLocation(gl, "projectionMatrix"), projectionMatrix);
+        _context.SetUniform(shader.GetUniformLocation(gl, "modelViewMatrix"), modelViewMatrix);
+    }
+
+    /// <summary>
+    /// Renders a point cloud
+    /// </summary>
+    private void RenderPoints(Points points, Camera camera, List<Light> lights)
+    {
+        var material = points.Material;
+        var geometry = points.Geometry;
+
+        // Compile shader if needed
+        if (material.NeedsCompile || !material.Shader.IsCompiled)
+        {
+            material.OnBeforeCompile(material.Shader);
+            material.Shader.Compile(_context.GL);
+            material.NeedsCompile = false;
+        }
+
+        // Use shader
+        if (_state.CurrentShader != material.Shader)
+        {
+            material.Shader.Use(_context.GL);
+            _state.CurrentShader = material.Shader;
+        }
+
+        // Update material state
+        ApplyMaterialState(material);
+
+        // Get geometry buffers
+        var buffers = _context.GetGeometryBuffers(geometry);
+
+        // Bind VAO
+        if (_state.CurrentVAO != buffers.VAO)
+        {
+            _context.GL.BindVertexArray(buffers.VAO);
+            _state.CurrentVAO = buffers.VAO;
+
+            // Set up attributes
+            SetupAttributes(material.Shader, buffers);
+        }
+
+        // Set uniforms
+        SetLineUniforms(material.Shader, points, camera);
+
+        // Set material uniforms
+        material.UpdateUniforms();
+        SetMaterialUniforms(material);
+
+        // Draw as points
+        int vertexCount = geometry.Vertices.Length / 3;
+        if (vertexCount > 0)
+        {
+            _context.GL.DrawArrays(PrimitiveType.Points, 0, (uint)vertexCount);
+            Stats.DrawCalls++;
         }
     }
 
@@ -480,7 +762,7 @@ public class Renderer : IDisposable
 /// </summary>
 internal class RenderItem
 {
-    public Mesh Mesh { get; set; } = null!;
+    public Object3D Object { get; set; } = null!;
     public float Z { get; set; }
 }
 

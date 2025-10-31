@@ -408,4 +408,157 @@ void main() {
     fragColor = vec4(finalColor, opacity);
 }";
     }
+
+    public static class LineBasic
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+in vec3 color;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform bool useVertexColors;
+
+out vec3 vColor;
+
+void main() {
+    vColor = color;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+uniform vec3 color;
+uniform float opacity;
+uniform bool useVertexColors;
+
+in vec3 vColor;
+
+out vec4 fragColor;
+
+void main() {
+    vec3 finalColor = useVertexColors ? vColor : color;
+    fragColor = vec4(finalColor, opacity);
+}";
+    }
+
+    public static class LineDashed
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+in vec3 color;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform bool useVertexColors;
+uniform float scale;
+
+out vec3 vColor;
+out float vLineDistance;
+
+void main() {
+    vColor = color;
+
+    // Calculate line distance for dashing
+    // This is a simplified approach - in real three.js this is computed per-segment
+    vLineDistance = position.x * scale;
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+uniform vec3 color;
+uniform float opacity;
+uniform bool useVertexColors;
+uniform float dashSize;
+uniform float gapSize;
+
+in vec3 vColor;
+in float vLineDistance;
+
+out vec4 fragColor;
+
+void main() {
+    // Dash pattern logic
+    float totalSize = dashSize + gapSize;
+    float modulo = mod(vLineDistance, totalSize);
+
+    if (modulo > dashSize) {
+        discard;
+    }
+
+    vec3 finalColor = useVertexColors ? vColor : color;
+    fragColor = vec4(finalColor, opacity);
+}";
+    }
+
+    public static class Points
+    {
+        public const string VertexShader = @"#version 300 es
+precision highp float;
+
+in vec3 position;
+in vec3 color;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform float size;
+uniform bool sizeAttenuation;
+uniform bool useVertexColors;
+
+out vec3 vColor;
+
+void main() {
+    vColor = color;
+
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+
+    // Point size with optional distance attenuation
+    if (sizeAttenuation) {
+        gl_PointSize = size * (300.0 / -mvPosition.z);
+    } else {
+        gl_PointSize = size;
+    }
+}";
+
+        public const string FragmentShader = @"#version 300 es
+precision highp float;
+
+uniform vec3 color;
+uniform float opacity;
+uniform sampler2D map;
+uniform bool useMap;
+uniform bool useVertexColors;
+
+in vec3 vColor;
+
+out vec4 fragColor;
+
+void main() {
+    vec3 finalColor = useVertexColors ? vColor : color;
+
+    // Circular point shape
+    vec2 coord = gl_PointCoord - vec2(0.5);
+    if (length(coord) > 0.5) {
+        discard;
+    }
+
+    vec4 baseColor = vec4(finalColor, opacity);
+
+    if (useMap) {
+        vec4 texColor = texture(map, gl_PointCoord);
+        baseColor *= texColor;
+    }
+
+    fragColor = baseColor;
+}";
+    }
 }
