@@ -234,6 +234,23 @@ public class RenderContext : IDisposable
             buffers.IndexCount = geometry.Indices.Length;
         }
 
+        // Skin index buffer (for skeletal animation)
+        if (geometry.SkinIndices != null && geometry.SkinIndices.Length > 0)
+        {
+            buffers.SkinIndexBuffer = _gl.CreateBuffer();
+            _gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.SkinIndexBuffer);
+            _gl.BufferData(BufferTargetARB.ArrayBuffer, geometry.SkinIndices, BufferUsageARB.StaticDraw);
+            buffers.IsSkinned = true;
+        }
+
+        // Skin weight buffer (for skeletal animation)
+        if (geometry.SkinWeights != null && geometry.SkinWeights.Length > 0)
+        {
+            buffers.SkinWeightBuffer = _gl.CreateBuffer();
+            _gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.SkinWeightBuffer);
+            _gl.BufferData(BufferTargetARB.ArrayBuffer, geometry.SkinWeights, BufferUsageARB.StaticDraw);
+        }
+
         _gl.BindVertexArray(0);
 
         return buffers;
@@ -531,4 +548,9 @@ public class GeometryBuffers
     public uint InstanceMatrixBuffer { get; set; }
     public uint InstanceColorBuffer { get; set; }
     public bool IsInstanced { get; set; }
+
+    // Skinning buffers
+    public uint SkinIndexBuffer { get; set; }
+    public uint SkinWeightBuffer { get; set; }
+    public bool IsSkinned { get; set; }
 }

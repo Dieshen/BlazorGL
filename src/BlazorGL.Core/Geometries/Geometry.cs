@@ -40,6 +40,19 @@ public abstract class Geometry : IDisposable
     /// </summary>
     public float[]? Colors { get; protected set; }
 
+    /// <summary>
+    /// Skin indices (bone indices affecting each vertex, up to 4 per vertex)
+    /// Format: bone0, bone1, bone2, bone3, bone0, bone1, bone2, bone3, ...
+    /// </summary>
+    public float[]? SkinIndices { get; set; }
+
+    /// <summary>
+    /// Skin weights (influence of each bone on the vertex, up to 4 per vertex)
+    /// Format: weight0, weight1, weight2, weight3, weight0, weight1, weight2, weight3, ...
+    /// Weights should sum to 1.0 for each vertex
+    /// </summary>
+    public float[]? SkinWeights { get; set; }
+
     private BoundingBox _boundingBox;
     private BoundingSphere _boundingSphere;
     private bool _boundingBoxNeedsUpdate = true;

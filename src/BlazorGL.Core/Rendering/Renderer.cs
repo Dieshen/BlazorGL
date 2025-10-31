@@ -174,7 +174,11 @@ public class Renderer : IDisposable
         // Render all items
         foreach (var item in renderList)
         {
-            if (item.Object is InstancedMesh instancedMesh)
+            if (item.Object is SkinnedMesh skinnedMesh)
+            {
+                RenderSkinnedMesh(skinnedMesh, scene, camera, lights);
+            }
+            else if (item.Object is InstancedMesh instancedMesh)
             {
                 RenderInstancedMesh(instancedMesh, scene, camera, lights);
             }
@@ -591,6 +595,138 @@ public class Renderer : IDisposable
                 gl.EnableVertexAttribArray((uint)colorLocation);
                 gl.VertexAttribPointer((uint)colorLocation, 3, VertexAttribPointerType.Float, false, 0, null);
                 gl.VertexAttribDivisor((uint)colorLocation, 1); // Advance once per instance
+            }
+        }
+    }
+
+    /// <summary>
+    /// Renders a skinned mesh with skeletal animation
+    /// </summary>
+    private void RenderSkinnedMesh(SkinnedMesh skinnedMesh, Scene scene, Camera camera, List<Light> lights)
+    {
+        // Update skeleton before rendering
+        skinnedMesh.UpdateSkeleton();
+
+        var material = skinnedMesh.Material;
+        var geometry = skinnedMesh.Geometry;
+
+        // Compile shader if needed
+        if (material.NeedsCompile || !material.Shader.IsCompiled)
+        {
+            material.OnBeforeCompile(material.Shader);
+            material.Shader.Compile(_context.GL);
+            material.NeedsCompile = false;
+        }
+
+        // Use shader
+        if (_state.CurrentShader != material.Shader)
+        {
+            material.Shader.Use(_context.GL);
+            _state.CurrentShader = material.Shader;
+        }
+
+        // Update material state
+        ApplyMaterialState(material);
+
+        // Get geometry buffers
+        var buffers = _context.GetGeometryBuffers(geometry);
+
+        // Bind VAO
+        if (_state.CurrentVAO != buffers.VAO)
+        {
+            _context.GL.BindVertexArray(buffers.VAO);
+            _state.CurrentVAO = buffers.VAO;
+
+            // Set up standard attributes
+            SetupAttributes(material.Shader, buffers);
+
+            // Set up skin attributes
+            if (buffers.IsSkinned)
+            {
+                SetupSkinAttributes(material.Shader, buffers);
+            }
+        }
+
+        // Set standard uniforms
+        SetStandardUniforms(material.Shader, skinnedMesh, camera, lights, scene);
+
+        // Set bone uniforms
+        if (skinnedMesh.Skeleton != null)
+        {
+            SetBoneUniforms(material.Shader, skinnedMesh.Skeleton);
+        }
+
+        // Set material uniforms
+        material.UpdateUniforms();
+        SetMaterialUniforms(material);
+
+        // Draw
+        if (buffers.IndexCount > 0)
+        {
+            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, null);
+            Stats.DrawCalls++;
+            Stats.Triangles += buffers.IndexCount / 3;
+        }
+    }
+
+    /// <summary>
+    /// Sets up skin attributes for skinned mesh rendering
+    /// </summary>
+    private void SetupSkinAttributes(Shaders.Shader shader, GeometryBuffers buffers)
+    {
+        var gl = _context.GL;
+
+        if (buffers.SkinIndexBuffer > 0)
+        {
+            gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.SkinIndexBuffer);
+            int location = shader.GetAttributeLocation(gl, "skinIndex");
+            if (location >= 0)
+            {
+                gl.EnableVertexAttribArray((uint)location);
+                gl.VertexAttribPointer((uint)location, 4, VertexAttribPointerType.Float, false, 0, null);
+            }
+        }
+
+        if (buffers.SkinWeightBuffer > 0)
+        {
+            gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.SkinWeightBuffer);
+            int location = shader.GetAttributeLocation(gl, "skinWeight");
+            if (location >= 0)
+            {
+                gl.EnableVertexAttribArray((uint)location);
+                gl.VertexAttribPointer((uint)location, 4, VertexAttribPointerType.Float, false, 0, null);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sets bone matrix uniforms for skinning
+    /// </summary>
+    private void SetBoneUniforms(Shaders.Shader shader, Skeleton skeleton)
+    {
+        var gl = _context.GL;
+
+        // Set bone matrices as uniform array
+        if (skeleton.BoneMatrices != null && skeleton.BoneMatrices.Length > 0)
+        {
+            // For WebGL, we typically pass bone matrices as a uniform array
+            // Limited to around 64-128 bones depending on GPU
+            int maxBones = System.Math.Min(skeleton.BoneMatrices.Length, 128);
+
+            for (int i = 0; i < maxBones; i++)
+            {
+                int location = shader.GetUniformLocation(gl, $"boneMatrices[{i}]");
+                if (location >= 0)
+                {
+                    _context.SetUniform(location, skeleton.BoneMatrices[i]);
+                }
+            }
+
+            // Also set bone count
+            int countLocation = shader.GetUniformLocation(gl, "numBones");
+            if (countLocation >= 0)
+            {
+                _context.SetUniform(countLocation, maxBones);
             }
         }
     }
