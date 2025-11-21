@@ -95,6 +95,11 @@ public class OrthographicCamera : Camera
     /// <summary>
     /// Creates a new orthographic camera
     /// </summary>
+    public OrthographicCamera(float left, float right, float top, float bottom)
+        : this(left, right, top, bottom, -1f, 1f)
+    {
+    }
+
     public OrthographicCamera(float left, float right, float top, float bottom, float near, float far)
     {
         _left = left;

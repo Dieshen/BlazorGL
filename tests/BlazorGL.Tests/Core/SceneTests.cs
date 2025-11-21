@@ -1,5 +1,6 @@
 using Xunit;
 using BlazorGL.Core;
+using BlazorGL.Core.Math;
 using BlazorGL.Core.Lights;
 using BlazorGL.Core.Geometries;
 using BlazorGL.Core.Materials;
@@ -60,7 +61,7 @@ public class SceneTests
     public void Scene_Background_CanBeSet()
     {
         var scene = new Scene();
-        var color = new Math.Color(0.2f, 0.3f, 0.4f);
+        var color = new Color(0.2f, 0.3f, 0.4f);
 
         scene.Background = color;
 

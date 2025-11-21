@@ -42,9 +42,9 @@ public class PolyhedronGeometry : Geometry
         var normList = new List<float>();
         var uvList = new List<float>();
 
-        foreach (var v in vertices)
+        foreach (var vertex in vertices)
         {
-            Vector3 normalized = Vector3.Normalize(v);
+            Vector3 normalized = Vector3.Normalize(vertex);
 
             // Position (normalized and scaled by radius)
             vertList.Add(normalized.X * radius);
@@ -58,9 +58,9 @@ public class PolyhedronGeometry : Geometry
 
             // UV coordinates (spherical mapping)
             float u = 0.5f + MathF.Atan2(normalized.Z, normalized.X) / (2 * MathF.PI);
-            float v = 0.5f - MathF.Asin(normalized.Y) / MathF.PI;
+            float vCoord = 0.5f - MathF.Asin(normalized.Y) / MathF.PI;
             uvList.Add(u);
-            uvList.Add(v);
+            uvList.Add(vCoord);
         }
 
         Vertices = vertList.ToArray();

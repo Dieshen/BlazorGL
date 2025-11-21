@@ -13,13 +13,18 @@ public class TubeGeometry : Geometry
         BuildTube(path, radius, tubularSegments, radialSegments, closed);
     }
 
+    public TubeGeometry(Vector3[] path, int tubularSegments, float radius, int radialSegments = 8, bool closed = false)
+        : this(path, radius, tubularSegments, radialSegments, closed)
+    {
+    }
+
     private void BuildTube(Vector3[] path, float radius, int tubularSegments, int radialSegments, bool closed)
     {
         if (path.Length < 2)
             throw new ArgumentException("Path must contain at least 2 points");
 
-        tubularSegments = Math.Min(tubularSegments, path.Length - 1);
-        radialSegments = Math.Max(3, radialSegments);
+        tubularSegments = System.Math.Min(tubularSegments, path.Length - 1);
+        radialSegments = System.Math.Max(3, radialSegments);
 
         var vertices = new List<float>();
         var normals = new List<float>();
@@ -31,7 +36,7 @@ public class TubeGeometry : Geometry
         {
             float u = (float)i / tubularSegments;
             int pathIndex = (int)(u * (path.Length - 1));
-            pathIndex = Math.Min(pathIndex, path.Length - 2);
+            pathIndex = System.Math.Min(pathIndex, path.Length - 2);
 
             float t = u * (path.Length - 1) - pathIndex;
             Vector3 p1 = path[pathIndex];
@@ -43,7 +48,7 @@ public class TubeGeometry : Geometry
 
             // Create perpendicular vectors (Frenet frame)
             Vector3 normal;
-            if (Math.Abs(tangent.Y) < 0.9f)
+            if (System.Math.Abs(tangent.Y) < 0.9f)
                 normal = Vector3.Normalize(Vector3.Cross(tangent, Vector3.UnitY));
             else
                 normal = Vector3.Normalize(Vector3.Cross(tangent, Vector3.UnitX));

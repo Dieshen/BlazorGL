@@ -27,7 +27,7 @@ public class Sprite : Object3D
     /// <summary>
     /// Internal geometry for sprite quad
     /// </summary>
-    internal Geometry Geometry { get; private set; }
+    internal Geometry Geometry { get; private set; } = null!;
 
     public Sprite()
     {
@@ -44,8 +44,12 @@ public class Sprite : Object3D
 
     private void CreateGeometry()
     {
-        // Create a simple quad geometry for the sprite
-        Geometry = new Geometry
+        Geometry = new SpriteQuadGeometry();
+    }
+
+    private sealed class SpriteQuadGeometry : Geometry
+    {
+        public SpriteQuadGeometry()
         {
             Vertices = new float[]
             {
@@ -53,19 +57,32 @@ public class Sprite : Object3D
                  0.5f, -0.5f, 0,
                  0.5f,  0.5f, 0,
                 -0.5f,  0.5f, 0
-            },
+            };
+
             UVs = new float[]
             {
                 0, 0,
                 1, 0,
                 1, 1,
                 0, 1
-            },
+            };
+
             Indices = new uint[]
             {
                 0, 1, 2,
                 0, 2, 3
-            }
-        };
+            };
+
+            Normals = new float[]
+            {
+                0,0,1,
+                0,0,1,
+                0,0,1,
+                0,0,1
+            };
+
+            ComputeBoundingBox();
+            ComputeBoundingSphere();
+        }
     }
 }

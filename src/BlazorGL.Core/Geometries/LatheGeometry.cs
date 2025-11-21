@@ -24,7 +24,7 @@ public class LatheGeometry : Geometry
         if (points.Length < 2)
             throw new ArgumentException("Points array must contain at least 2 points");
 
-        segments = Math.Max(3, segments);
+        segments = System.Math.Max(3, segments);
 
         var vertices = new List<float>();
         var normals = new List<float>();

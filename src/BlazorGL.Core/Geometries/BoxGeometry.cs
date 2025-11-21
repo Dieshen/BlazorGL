@@ -5,6 +5,8 @@ namespace BlazorGL.Core.Geometries;
 /// </summary>
 public class BoxGeometry : Geometry
 {
+    public BoxGeometry() : this(1, 1, 1) { }
+
     public BoxGeometry(float width, float height, float depth,
                        int widthSegments = 1, int heightSegments = 1, int depthSegments = 1)
     {

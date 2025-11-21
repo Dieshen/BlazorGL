@@ -13,32 +13,32 @@ public abstract class Geometry : IDisposable
     /// <summary>
     /// Vertex positions (x, y, z, x, y, z, ...)
     /// </summary>
-    public float[] Vertices { get; protected set; } = Array.Empty<float>();
+    public float[] Vertices { get; set; } = Array.Empty<float>();
 
     /// <summary>
     /// Vertex normals (x, y, z, x, y, z, ...)
     /// </summary>
-    public float[] Normals { get; protected set; } = Array.Empty<float>();
+    public float[] Normals { get; set; } = Array.Empty<float>();
 
     /// <summary>
     /// Texture coordinates (u, v, u, v, ...)
     /// </summary>
-    public float[] UVs { get; protected set; } = Array.Empty<float>();
+    public float[] UVs { get; set; } = Array.Empty<float>();
 
     /// <summary>
     /// Vertex indices for indexed drawing
     /// </summary>
-    public uint[] Indices { get; protected set; } = Array.Empty<uint>();
+    public uint[] Indices { get; set; } = Array.Empty<uint>();
 
     /// <summary>
     /// Tangent vectors for normal mapping (x, y, z, w, ...)
     /// </summary>
-    public float[]? Tangents { get; protected set; }
+    public float[]? Tangents { get; set; }
 
     /// <summary>
     /// Vertex colors (r, g, b, r, g, b, ...)
     /// </summary>
-    public float[]? Colors { get; protected set; }
+    public float[]? Colors { get; set; }
 
     /// <summary>
     /// Skin indices (bone indices affecting each vertex, up to 4 per vertex)

@@ -1,5 +1,6 @@
 using System.Numerics;
 using BlazorGL.Core.Materials;
+using BlazorGL.Core.Geometries;
 
 namespace BlazorGL.Core;
 

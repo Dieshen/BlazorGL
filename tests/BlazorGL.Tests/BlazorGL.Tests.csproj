@@ -24,4 +24,9 @@
     <ProjectReference Include="..\..\src\BlazorGL\BlazorGL.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="BlazorGL.Core" />
+    <Using Include="BlazorGL.Core.Math" Alias="Math" />
+  </ItemGroup>
+
 </Project>

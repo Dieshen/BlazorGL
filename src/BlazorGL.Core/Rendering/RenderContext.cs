@@ -1,9 +1,10 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
-using Silk.NET.WebGL;
+using System;
 using System.Numerics;
 using BlazorGL.Core.Textures;
 using BlazorGL.Core.Geometries;
+using BlazorGL.Core.WebGL;
 
 namespace BlazorGL.Core.Rendering;
 
@@ -16,7 +17,7 @@ public class RenderContext : IDisposable
     private GL _gl = null!;
 
     /// <summary>
-    /// Silk.NET WebGL instance
+    /// WebGL interop instance
     /// </summary>
     public GL GL => _gl;
 
@@ -55,10 +56,7 @@ public class RenderContext : IDisposable
     /// </summary>
     public async Task InitializeAsync(IJSRuntime jsRuntime, ElementReference canvas)
     {
-        _gl = await GL.GetFromJSObjectAsync(jsRuntime, canvas);
-
-        if (_gl == null)
-            throw new Exception("Failed to get WebGL 2.0 context");
+        _gl = await GL.CreateAsync(jsRuntime, canvas);
 
         // Enable basic features
         _gl.Enable(EnableCap.DepthTest);
@@ -86,12 +84,11 @@ public class RenderContext : IDisposable
     /// </summary>
     public void Clear(bool color = true, bool depth = true, bool stencil = false)
     {
-        ClearBufferMask mask = 0;
-        if (color) mask |= ClearBufferMask.ColorBufferBit;
-        if (depth) mask |= ClearBufferMask.DepthBufferBit;
-        if (stencil) mask |= ClearBufferMask.StencilBufferBit;
-
-        _gl.Clear(mask);
+        var masks = new List<ClearBufferMask>();
+        if (color) masks.Add(ClearBufferMask.ColorBufferBit);
+        if (depth) masks.Add(ClearBufferMask.DepthBufferBit);
+        if (stencil) masks.Add(ClearBufferMask.StencilBufferBit);
+        _gl.Clear(masks.ToArray());
     }
 
     /// <summary>
@@ -261,8 +258,10 @@ public class RenderContext : IDisposable
     /// </summary>
     public uint GetTexture(Texture texture)
     {
-        if (!texture.NeedsUpdate && _textures.TryGetValue(texture, out var textureId))
-            return textureId;
+        if (!texture.NeedsUpdate && _textures.TryGetValue(texture, out var cached))
+            return cached;
+
+        uint textureId = texture.TextureId;
 
         if (texture.NeedsUpdate && texture.ImageData != null)
         {
@@ -276,6 +275,10 @@ public class RenderContext : IDisposable
             texture.TextureId = textureId;
             texture.NeedsUpdate = false;
         }
+        else if (texture.ImageData == null && textureId == 0)
+        {
+            throw new InvalidOperationException($"Texture '{texture.Name}' has no image data to upload.");
+        }
 
         return textureId;
     }
@@ -283,34 +286,30 @@ public class RenderContext : IDisposable
     /// <summary>
     /// Creates a WebGL texture
     /// </summary>
-    private unsafe uint CreateTexture(Texture texture)
+    private uint CreateTexture(Texture texture)
     {
         uint textureId = _gl.CreateTexture();
         _gl.BindTexture(TextureTarget.Texture2D, textureId);
 
         if (texture.ImageData != null)
         {
-            fixed (byte* dataPtr = texture.ImageData)
-            {
-                _gl.TexImage2D(
-                    TextureTarget.Texture2D,
-                    0,
-                    (int)texture.Format,
-                    (uint)texture.Width,
-                    (uint)texture.Height,
-                    0,
-                    PixelFormat.Rgba,
-                    PixelType.UnsignedByte,
-                    dataPtr
-                );
-            }
+            _gl.TexImage2D(
+                TextureTarget.Texture2D,
+                0,
+                texture.Format,
+                (uint)texture.Width,
+                (uint)texture.Height,
+                PixelFormat.Rgba,
+                PixelType.UnsignedByte,
+                texture.ImageData
+            );
         }
 
         // Set texture parameters
-        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)ConvertWrapMode(texture.WrapS));
-        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)ConvertWrapMode(texture.WrapT));
-        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)ConvertMinFilter(texture.MinFilter));
-        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)ConvertMagFilter(texture.MagFilter));
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, texture.WrapS.ToString());
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, texture.WrapT.ToString());
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, texture.MinFilter.ToString());
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, texture.MagFilter.ToString());
 
         if (texture.GenerateMipmaps)
         {
@@ -321,32 +320,6 @@ public class RenderContext : IDisposable
 
         return textureId;
     }
-
-    private GLEnum ConvertWrapMode(TextureWrapMode mode) => mode switch
-    {
-        TextureWrapMode.Repeat => GLEnum.Repeat,
-        TextureWrapMode.ClampToEdge => GLEnum.ClampToEdge,
-        TextureWrapMode.MirroredRepeat => GLEnum.MirroredRepeat,
-        _ => GLEnum.Repeat
-    };
-
-    private GLEnum ConvertMinFilter(TextureMinFilter filter) => filter switch
-    {
-        TextureMinFilter.Nearest => GLEnum.Nearest,
-        TextureMinFilter.Linear => GLEnum.Linear,
-        TextureMinFilter.NearestMipmapNearest => GLEnum.NearestMipmapNearest,
-        TextureMinFilter.LinearMipmapNearest => GLEnum.LinearMipmapNearest,
-        TextureMinFilter.NearestMipmapLinear => GLEnum.NearestMipmapLinear,
-        TextureMinFilter.LinearMipmapLinear => GLEnum.LinearMipmapLinear,
-        _ => GLEnum.Linear
-    };
-
-    private GLEnum ConvertMagFilter(TextureMagFilter filter) => filter switch
-    {
-        TextureMagFilter.Nearest => GLEnum.Nearest,
-        TextureMagFilter.Linear => GLEnum.Linear,
-        _ => GLEnum.Linear
-    };
 
     /// <summary>
     /// Sets uniform values
@@ -376,10 +349,14 @@ public class RenderContext : IDisposable
                 _gl.Uniform4(location, v4.X, v4.Y, v4.Z, v4.W);
                 break;
             case Matrix4x4 mat:
-                unsafe
+                var values = new float[]
                 {
-                    _gl.UniformMatrix4(location, 1, false, (float*)&mat);
-                }
+                    mat.M11, mat.M12, mat.M13, mat.M14,
+                    mat.M21, mat.M22, mat.M23, mat.M24,
+                    mat.M31, mat.M32, mat.M33, mat.M34,
+                    mat.M41, mat.M42, mat.M43, mat.M44
+                };
+                _gl.UniformMatrix4(location, false, values);
                 break;
             case Texture texture:
                 // Texture binding is handled separately
@@ -403,25 +380,21 @@ public class RenderContext : IDisposable
         uint colorTexture = _gl.CreateTexture();
         _gl.BindTexture(TextureTarget.Texture2D, colorTexture);
 
-        unsafe
-        {
-            _gl.TexImage2D(
-                TextureTarget.Texture2D,
-                0,
-                (int)InternalFormat.Rgba,
-                (uint)target.Width,
-                (uint)target.Height,
-                0,
-                PixelFormat.Rgba,
-                PixelType.UnsignedByte,
-                null
-            );
-        }
+        _gl.TexImage2D(
+            TextureTarget.Texture2D,
+            0,
+            InternalFormat.Rgba,
+            (uint)target.Width,
+            (uint)target.Height,
+            PixelFormat.Rgba,
+            PixelType.UnsignedByte,
+            null
+        );
 
-        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
-        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, TextureMinFilter.Linear.ToString());
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, TextureMagFilter.Linear.ToString());
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, TextureWrapMode.ClampToEdge.ToString());
+        _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, TextureWrapMode.ClampToEdge.ToString());
 
         // Attach color texture to framebuffer
         _gl.FramebufferTexture2D(

@@ -11,12 +11,10 @@ namespace BlazorGL.Core.Loaders;
 public class MaterialLoader
 {
     private readonly LoadingManager? _manager;
-    private readonly TextureLoader? _textureLoader;
 
-    public MaterialLoader(LoadingManager? manager = null, TextureLoader? textureLoader = null)
+    public MaterialLoader(LoadingManager? manager = null)
     {
         _manager = manager;
-        _textureLoader = textureLoader;
     }
 
     /// <summary>
@@ -86,17 +84,6 @@ public class MaterialLoader
 
         if (json.TryGetProperty("depthWrite", out var depthWrite))
             material.DepthWrite = depthWrite.GetBoolean();
-
-        // Parse textures
-        if (_textureLoader != null && json.TryGetProperty("map", out var mapUrl))
-        {
-            var url = mapUrl.GetString();
-            if (!string.IsNullOrEmpty(url))
-            {
-                // Would load texture asynchronously
-                // material.Map = await _textureLoader.LoadAsync(url);
-            }
-        }
 
         return material;
     }

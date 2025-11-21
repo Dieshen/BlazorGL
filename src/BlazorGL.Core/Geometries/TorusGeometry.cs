@@ -15,8 +15,8 @@ public class TorusGeometry : Geometry
 
     private void BuildTorus(float radius, float tube, int radialSegments, int tubularSegments, float arc)
     {
-        radialSegments = Math.Max(3, radialSegments);
-        tubularSegments = Math.Max(3, tubularSegments);
+        radialSegments = System.Math.Max(3, radialSegments);
+        tubularSegments = System.Math.Max(3, tubularSegments);
 
         var vertices = new List<float>();
         var normals = new List<float>();

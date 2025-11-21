@@ -14,7 +14,7 @@ public class CircleGeometry : Geometry
 
     private void BuildCircle(float radius, int segments, float thetaStart, float thetaLength)
     {
-        segments = Math.Max(3, segments);
+        segments = System.Math.Max(3, segments);
 
         var vertices = new List<float>();
         var normals = new List<float>();

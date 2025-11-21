@@ -17,8 +17,8 @@ public class SphereGeometry : Geometry
     private void BuildSphere(float radius, int widthSegments, int heightSegments,
                             float phiStart, float phiLength, float thetaStart, float thetaLength)
     {
-        widthSegments = Math.Max(3, widthSegments);
-        heightSegments = Math.Max(2, heightSegments);
+        widthSegments = System.Math.Max(3, widthSegments);
+        heightSegments = System.Math.Max(2, heightSegments);
 
         var vertices = new List<float>();
         var normals = new List<float>();

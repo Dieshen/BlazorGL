@@ -67,6 +67,8 @@ public struct BoundingSphere
         return Vector3.DistanceSquared(Center, point) <= Radius * Radius;
     }
 
+    public bool ContainsPoint(Vector3 point) => Contains(point);
+
     /// <summary>
     /// Checks if this sphere intersects with another
     /// </summary>
@@ -93,4 +95,16 @@ public struct BoundingSphere
     }
 
     public override string ToString() => $"BoundingSphere(Center:{Center}, Radius:{Radius:F2})";
+
+    /// <summary>
+    /// Expands the sphere radius to include a point.
+    /// </summary>
+    public void ExpandByPoint(Vector3 point)
+    {
+        var distance = Vector3.Distance(Center, point);
+        if (distance > Radius)
+        {
+            Radius = distance;
+        }
+    }
 }

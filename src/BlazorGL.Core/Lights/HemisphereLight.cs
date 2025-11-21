@@ -16,6 +16,10 @@ public class HemisphereLight : Light
     /// </summary>
     public Math.Color GroundColor { get; set; }
 
+    public HemisphereLight() : this(Math.Color.White, Math.Color.Black, 1.0f)
+    {
+    }
+
     public HemisphereLight(Math.Color skyColor, Math.Color groundColor, float intensity = 1.0f)
     {
         Name = "HemisphereLight";

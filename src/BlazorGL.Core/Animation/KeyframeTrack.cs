@@ -1,11 +1,11 @@
 using System.Numerics;
 
-namespace BlazorGL.Extensions.Animation;
+namespace BlazorGL.Core.Animation;
 
 /// <summary>
 /// Keyframe animation track for a specific property
 /// </summary>
-public class KeyframeTrack
+public class KeyframeTrack : IAnimationTrack
 {
     public string TargetProperty { get; set; } = string.Empty;
     public float[] Times { get; set; } = Array.Empty<float>();

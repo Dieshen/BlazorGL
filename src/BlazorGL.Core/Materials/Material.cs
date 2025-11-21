@@ -77,7 +77,7 @@ public abstract class Material : IDisposable
     /// <summary>
     /// Whether the shader needs to be compiled
     /// </summary>
-    public bool NeedsCompile { get; protected set; } = true;
+    public bool NeedsCompile { get; set; } = true;
 
     /// <summary>
     /// Initializes the material's shader

@@ -6,6 +6,7 @@ global using BlazorGL.Core.Lights;
 global using BlazorGL.Core.Materials;
 global using BlazorGL.Core.Rendering;
 global using BlazorGL.Core.Textures;
+global using BlazorGL.Core.Animation;
 global using BlazorGL.Loaders;
 global using BlazorGL.Extensions.Animation;
 global using BlazorGL.Extensions.Raycasting;

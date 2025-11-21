@@ -1,4 +1,4 @@
-using Silk.NET.WebGL;
+using BlazorGL.Core.WebGL;
 
 namespace BlazorGL.Core.Shaders;
 
@@ -32,7 +32,7 @@ public class Shader : IDisposable
     /// <summary>
     /// Attribute locations cache
     /// </summary>
-    public Dictionary<string, uint> Attributes { get; } = new();
+    public Dictionary<string, int> Attributes { get; } = new();
 
     /// <summary>
     /// Whether the shader is compiled
@@ -106,7 +106,7 @@ public class Shader : IDisposable
     private void CacheLocations(GL gl)
     {
         // Get active uniforms
-        gl.GetProgram(ProgramId, ProgramPropertyARB.ActiveUniforms, out int uniformCount);
+        int uniformCount = gl.GetProgram(ProgramId, ProgramPropertyARB.ActiveUniforms);
         for (uint i = 0; i < uniformCount; i++)
         {
             string name = gl.GetActiveUniform(ProgramId, i, out _, out _);
@@ -118,15 +118,12 @@ public class Shader : IDisposable
         }
 
         // Get active attributes
-        gl.GetProgram(ProgramId, ProgramPropertyARB.ActiveAttributes, out int attributeCount);
+        int attributeCount = gl.GetProgram(ProgramId, ProgramPropertyARB.ActiveAttributes);
         for (uint i = 0; i < attributeCount; i++)
         {
             string name = gl.GetActiveAttrib(ProgramId, i, out _, out _);
             int location = gl.GetAttribLocation(ProgramId, name);
-            if (location >= 0)
-            {
-                Attributes[name] = (uint)location;
-            }
+            Attributes[name] = location;
         }
     }
 
@@ -156,18 +153,13 @@ public class Shader : IDisposable
     /// <summary>
     /// Gets an attribute location (from cache or queries GL)
     /// </summary>
-    public uint GetAttributeLocation(GL gl, string name)
+    public int GetAttributeLocation(GL gl, string name)
     {
-        if (Attributes.TryGetValue(name, out uint location))
+        if (Attributes.TryGetValue(name, out int location))
             return location;
 
-        int loc = gl.GetAttribLocation(ProgramId, name);
-        if (loc >= 0)
-        {
-            location = (uint)loc;
-            Attributes[name] = location;
-        }
-
+        location = gl.GetAttribLocation(ProgramId, name);
+        Attributes[name] = location;
         return location;
     }
 

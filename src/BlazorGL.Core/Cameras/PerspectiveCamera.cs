@@ -65,6 +65,13 @@ public class PerspectiveCamera : Camera
     }
 
     /// <summary>
+    /// Creates a new perspective camera with default configuration.
+    /// </summary>
+    public PerspectiveCamera() : this(75f, 1f, 0.1f, 1000f)
+    {
+    }
+
+    /// <summary>
     /// Creates a new perspective camera
     /// </summary>
     /// <param name="fov">Field of view in degrees</param>

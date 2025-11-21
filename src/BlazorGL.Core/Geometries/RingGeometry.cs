@@ -16,8 +16,8 @@ public class RingGeometry : Geometry
     private void BuildRing(float innerRadius, float outerRadius, int thetaSegments, int phiSegments,
                           float thetaStart, float thetaLength)
     {
-        thetaSegments = Math.Max(3, thetaSegments);
-        phiSegments = Math.Max(1, phiSegments);
+        thetaSegments = System.Math.Max(3, thetaSegments);
+        phiSegments = System.Math.Max(1, phiSegments);
 
         var vertices = new List<float>();
         var normals = new List<float>();

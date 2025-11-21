@@ -1,4 +1,4 @@
-using Silk.NET.WebGL;
+using BlazorGL.Core.WebGL;
 
 namespace BlazorGL.Core.Textures;
 

@@ -32,7 +32,7 @@ public class PointsMaterial : Material
     /// <summary>
     /// Whether to use vertex colors instead of uniform color
     /// </summary>
-    public bool VertexColors { get; set} = false;
+    public bool VertexColors { get; set; } = false;
 
     public PointsMaterial()
     {

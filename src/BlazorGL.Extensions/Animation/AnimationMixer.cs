@@ -1,4 +1,6 @@
+using System.Linq;
 using BlazorGL.Core;
+using BlazorGL.Core.Animation;
 
 namespace BlazorGL.Extensions.Animation;
 
@@ -47,7 +49,7 @@ public class AnimationMixer
             }
         }
 
-        foreach (var track in _clip.Tracks)
+        foreach (var track in _clip.Tracks.OfType<KeyframeTrack>())
         {
             var value = track.Evaluate(_time);
 
@@ -60,9 +62,7 @@ public class AnimationMixer
                     _target.Scale = value;
                     break;
                 case "rotation":
-                    // For rotation tracks, interpret Vector3 as Euler angles (in radians)
-                    var euler = value;
-                    _target.Rotation = System.Numerics.Quaternion.CreateFromYawPitchRoll(euler.Y, euler.X, euler.Z);
+                    _target.Rotation = value;
                     break;
             }
         }

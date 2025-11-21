@@ -60,6 +60,11 @@ public struct BoundingBox
     }
 
     /// <summary>
+    /// Backwards-compatible alias for ExpandToInclude.
+    /// </summary>
+    public void ExpandByPoint(Vector3 point) => ExpandToInclude(point);
+
+    /// <summary>
     /// Expands the bounding box to include another bounding box
     /// </summary>
     public void ExpandToInclude(BoundingBox other)
@@ -77,6 +82,11 @@ public struct BoundingBox
                point.Y >= Min.Y && point.Y <= Max.Y &&
                point.Z >= Min.Z && point.Z <= Max.Z;
     }
+
+    /// <summary>
+    /// Backwards-compatible alias for Contains.
+    /// </summary>
+    public bool ContainsPoint(Vector3 point) => Contains(point);
 
     /// <summary>
     /// Checks if this bounding box intersects with another

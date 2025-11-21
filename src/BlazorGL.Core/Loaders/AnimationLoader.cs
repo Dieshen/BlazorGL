@@ -1,6 +1,7 @@
 using BlazorGL.Core.Animation;
 using System.Numerics;
 using System.Text.Json;
+using System.Linq;
 
 namespace BlazorGL.Core.Loaders;
 
@@ -73,7 +74,11 @@ public class AnimationLoader
             duration = durationElement.GetSingle();
         }
 
-        var clip = new AnimationClip(name, duration);
+        var clip = new AnimationClip
+        {
+            Name = name,
+            Duration = duration
+        };
 
         // Parse tracks
         if (json.TryGetProperty("tracks", out var tracksArray))
@@ -83,7 +88,7 @@ public class AnimationLoader
                 var track = ParseTrack(trackJson);
                 if (track != null)
                 {
-                    clip.AddTrack(track);
+                    clip.Tracks.Add(track);
                 }
             }
         }
@@ -91,14 +96,14 @@ public class AnimationLoader
         return clip;
     }
 
-    private AnimationTrack? ParseTrack(JsonElement json)
+    private KeyframeTrack? ParseTrack(JsonElement json)
     {
         if (!json.TryGetProperty("name", out var nameElement) ||
             !json.TryGetProperty("type", out var typeElement))
             return null;
 
         var name = nameElement.GetString() ?? "";
-        var type = typeElement.GetString() ?? "";
+        var type = (typeElement.GetString() ?? "").ToLowerInvariant();
 
         // Parse times and values
         if (!json.TryGetProperty("times", out var timesElement) ||
@@ -117,57 +122,62 @@ public class AnimationLoader
         };
     }
 
-    private AnimationTrack ParseVector3Track(string name, float[] times, float[] values)
+    private KeyframeTrack ParseVector3Track(string name, float[] times, float[] values)
     {
-        var track = new VectorTrack(name);
-
+        var vectors = new List<Vector3>();
         for (int i = 0; i < times.Length; i++)
         {
             var valueIndex = i * 3;
             if (valueIndex + 2 < values.Length)
             {
-                var keyframe = new Keyframe<Vector3>(
-                    times[i],
-                    new Vector3(values[valueIndex], values[valueIndex + 1], values[valueIndex + 2])
-                );
-                track.AddKeyframe(keyframe);
+                vectors.Add(new Vector3(values[valueIndex], values[valueIndex + 1], values[valueIndex + 2]));
             }
         }
 
-        return track;
+        return new KeyframeTrack
+        {
+            TargetProperty = name,
+            Times = times,
+            Values = vectors.ToArray()
+        };
     }
 
-    private AnimationTrack ParseQuaternionTrack(string name, float[] times, float[] values)
+    private KeyframeTrack ParseQuaternionTrack(string name, float[] times, float[] values)
     {
-        var track = new QuaternionTrack(name);
-
+        var vectors = new List<Vector3>();
         for (int i = 0; i < times.Length; i++)
         {
             var valueIndex = i * 4;
             if (valueIndex + 3 < values.Length)
             {
-                var keyframe = new Keyframe<Quaternion>(
-                    times[i],
-                    new Quaternion(values[valueIndex], values[valueIndex + 1], values[valueIndex + 2], values[valueIndex + 3])
-                );
-                track.AddKeyframe(keyframe);
+                var q = new Quaternion(values[valueIndex], values[valueIndex + 1], values[valueIndex + 2], values[valueIndex + 3]);
+                vectors.Add(QuaternionToEuler(q));
             }
         }
 
-        return track;
+        return new KeyframeTrack
+        {
+            TargetProperty = name,
+            Times = times,
+            Values = vectors.ToArray()
+        };
     }
 
-    private AnimationTrack ParseNumberTrack(string name, float[] times, float[] values)
+    private KeyframeTrack ParseNumberTrack(string name, float[] times, float[] values)
     {
-        var track = new NumberTrack(name);
-
+        var vectors = new List<Vector3>();
         for (int i = 0; i < times.Length && i < values.Length; i++)
         {
-            var keyframe = new Keyframe<float>(times[i], values[i]);
-            track.AddKeyframe(keyframe);
+            var v = values[i];
+            vectors.Add(new Vector3(v, v, v));
         }
 
-        return track;
+        return new KeyframeTrack
+        {
+            TargetProperty = name,
+            Times = times,
+            Values = vectors.ToArray()
+        };
     }
 
     /// <summary>
@@ -179,36 +189,50 @@ public class AnimationLoader
         {
             name = clip.Name,
             duration = clip.Duration,
-            tracks = clip.Tracks.Select(track => new
+            tracks = clip.Tracks
+                .OfType<KeyframeTrack>()
+                .Select(track => new
             {
-                name = track.Name,
-                type = GetTrackType(track),
-                times = GetTrackTimes(track),
-                values = GetTrackValues(track)
+                name = track.TargetProperty,
+                type = "vector3",
+                times = track.Times,
+                values = FlattenVector3(track.Values)
             })
         }));
     }
 
-    private string GetTrackType(AnimationTrack track)
+    private static float[] FlattenVector3(Vector3[] values)
     {
-        return track switch
+        var result = new float[values.Length * 3];
+        for (int i = 0; i < values.Length; i++)
         {
-            VectorTrack => "vector3",
-            QuaternionTrack => "quaternion",
-            NumberTrack => "number",
-            _ => "unknown"
-        };
+            var idx = i * 3;
+            result[idx] = values[i].X;
+            result[idx + 1] = values[i].Y;
+            result[idx + 2] = values[i].Z;
+        }
+        return result;
     }
 
-    private float[] GetTrackTimes(AnimationTrack track)
+    private static Vector3 QuaternionToEuler(Quaternion q)
     {
-        // Simplified - would need proper implementation based on track type
-        return Array.Empty<float>();
-    }
+        // Convert quaternion to Euler angles (pitch, yaw, roll)
+        var sinrCosp = 2 * (q.W * q.X + q.Y * q.Z);
+        var cosrCosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
+        var roll = MathF.Atan2(sinrCosp, cosrCosp);
 
-    private float[] GetTrackValues(AnimationTrack track)
-    {
-        // Simplified - would need proper implementation based on track type
-        return Array.Empty<float>();
+        var sinp = 2 * (q.W * q.Y - q.Z * q.X);
+        float pitch;
+        if (MathF.Abs(sinp) >= 1)
+            pitch = MathF.CopySign(MathF.PI / 2, sinp);
+        else
+            pitch = MathF.Asin(sinp);
+
+        var sinyCosp = 2 * (q.W * q.Z + q.X * q.Y);
+        var cosyCosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+        var yaw = MathF.Atan2(sinyCosp, cosyCosp);
+
+        // Map to Vector3 compatible with CreateFromYawPitchRoll (Y, X, Z order in mixer)
+        return new Vector3(pitch, yaw, roll);
     }
 }

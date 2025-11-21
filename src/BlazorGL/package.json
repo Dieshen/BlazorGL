@@ -1,0 +1,11 @@
+{
+  "name": "blazorgl",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build:webgl": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

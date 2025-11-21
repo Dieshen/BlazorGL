@@ -24,6 +24,11 @@ public abstract class Camera : Object3D
             }
             return _projectionMatrix;
         }
+        protected internal set
+        {
+            _projectionMatrix = value;
+            _projectionMatrixNeedsUpdate = false;
+        }
     }
 
     /// <summary>

@@ -12,8 +12,8 @@ public class PlaneGeometry : Geometry
 
     private void BuildPlane(float width, float height, int widthSegments, int heightSegments)
     {
-        widthSegments = Math.Max(1, widthSegments);
-        heightSegments = Math.Max(1, heightSegments);
+        widthSegments = System.Math.Max(1, widthSegments);
+        heightSegments = System.Math.Max(1, heightSegments);
 
         float widthHalf = width / 2;
         float heightHalf = height / 2;

@@ -5,7 +5,8 @@ using BlazorGL.Core.Cameras;
 using BlazorGL.Core.Lights;
 using BlazorGL.Core.Materials;
 using BlazorGL.Core.Textures;
-using Silk.NET.WebGL;
+using BlazorGL.Core.Geometries;
+using BlazorGL.Core.WebGL;
 
 namespace BlazorGL.Core.Rendering;
 
@@ -377,7 +378,7 @@ public class Renderer : IDisposable
         // Draw
         if (buffers.IndexCount > 0)
         {
-            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, null);
+            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, 0);
         }
     }
 
@@ -390,31 +391,41 @@ public class Renderer : IDisposable
             return;
 
         bool isRenderable = false;
+        Material? material = null;
+        Geometry? geometry = null;
 
         // Check if object is renderable
-        if (obj is Mesh mesh && mesh.Geometry != null && mesh.Material != null)
+        switch (obj)
         {
-            isRenderable = true;
-        }
-        else if (obj is Line line && line.Geometry != null && line.Material != null)
-        {
-            isRenderable = true;
-        }
-        else if (obj is LineSegments lineSegments && lineSegments.Geometry != null && lineSegments.Material != null)
-        {
-            isRenderable = true;
-        }
-        else if (obj is LineLoop lineLoop && lineLoop.Geometry != null && lineLoop.Material != null)
-        {
-            isRenderable = true;
-        }
-        else if (obj is Points points && points.Geometry != null && points.Material != null)
-        {
-            isRenderable = true;
-        }
-        else if (obj is Sprite sprite && sprite.Material != null)
-        {
-            isRenderable = true;
+            case Mesh mesh when mesh.Geometry != null && mesh.Material != null:
+                isRenderable = true;
+                material = mesh.Material;
+                geometry = mesh.Geometry;
+                break;
+            case Line line when line.Geometry != null && line.Material != null:
+                isRenderable = true;
+                material = line.Material;
+                geometry = line.Geometry;
+                break;
+            case LineSegments lineSegments when lineSegments.Geometry != null && lineSegments.Material != null:
+                isRenderable = true;
+                material = lineSegments.Material;
+                geometry = lineSegments.Geometry;
+                break;
+            case LineLoop lineLoop when lineLoop.Geometry != null && lineLoop.Material != null:
+                isRenderable = true;
+                material = lineLoop.Material;
+                geometry = lineLoop.Geometry;
+                break;
+            case Points points when points.Geometry != null && points.Material != null:
+                isRenderable = true;
+                material = points.Material;
+                geometry = points.Geometry;
+                break;
+            case Sprite sprite when sprite.Material != null:
+                isRenderable = true;
+                material = sprite.Material;
+                break;
         }
 
         if (isRenderable)
@@ -426,6 +437,8 @@ public class Renderer : IDisposable
             renderList.Add(new RenderItem
             {
                 Object = obj,
+                Material = material!,
+                Geometry = geometry,
                 Z = z
             });
         }
@@ -485,7 +498,7 @@ public class Renderer : IDisposable
         // Draw
         if (buffers.IndexCount > 0)
         {
-            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, null);
+            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, 0);
             Stats.DrawCalls++;
             Stats.Triangles += buffers.IndexCount / 3;
         }
@@ -551,7 +564,7 @@ public class Renderer : IDisposable
                 PrimitiveType.Triangles,
                 (uint)buffers.IndexCount,
                 DrawElementsType.UnsignedInt,
-                null,
+                0,
                 (uint)instancedMesh.Count
             );
             Stats.DrawCalls++;
@@ -579,7 +592,7 @@ public class Renderer : IDisposable
                 {
                     uint loc = (uint)(matrixLocation + i);
                     gl.EnableVertexAttribArray(loc);
-                    gl.VertexAttribPointer(loc, 4, VertexAttribPointerType.Float, false, 16 * sizeof(float), (void*)(i * 4 * sizeof(float)));
+                    gl.VertexAttribPointer(loc, 4, VertexAttribPointerType.Float, false, 64, i * 16);
                     gl.VertexAttribDivisor(loc, 1); // Advance once per instance
                 }
             }
@@ -593,7 +606,7 @@ public class Renderer : IDisposable
             if (colorLocation >= 0)
             {
                 gl.EnableVertexAttribArray((uint)colorLocation);
-                gl.VertexAttribPointer((uint)colorLocation, 3, VertexAttribPointerType.Float, false, 0, null);
+                gl.VertexAttribPointer((uint)colorLocation, 3, VertexAttribPointerType.Float, false, 0, 0);
                 gl.VertexAttribDivisor((uint)colorLocation, 1); // Advance once per instance
             }
         }
@@ -663,7 +676,7 @@ public class Renderer : IDisposable
         // Draw
         if (buffers.IndexCount > 0)
         {
-            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, null);
+            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, 0);
             Stats.DrawCalls++;
             Stats.Triangles += buffers.IndexCount / 3;
         }
@@ -683,7 +696,7 @@ public class Renderer : IDisposable
             if (location >= 0)
             {
                 gl.EnableVertexAttribArray((uint)location);
-                gl.VertexAttribPointer((uint)location, 4, VertexAttribPointerType.Float, false, 0, null);
+                gl.VertexAttribPointer((uint)location, 4, VertexAttribPointerType.Float, false, 0, 0);
             }
         }
 
@@ -691,11 +704,11 @@ public class Renderer : IDisposable
         {
             gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.SkinWeightBuffer);
             int location = shader.GetAttributeLocation(gl, "skinWeight");
-            if (location >= 0)
-            {
-                gl.EnableVertexAttribArray((uint)location);
-                gl.VertexAttribPointer((uint)location, 4, VertexAttribPointerType.Float, false, 0, null);
-            }
+        if (location >= 0)
+        {
+            gl.EnableVertexAttribArray((uint)location);
+            gl.VertexAttribPointer((uint)location, 4, VertexAttribPointerType.Float, false, 0, 0);
+        }
         }
     }
 
@@ -1019,7 +1032,7 @@ public class Renderer : IDisposable
         // Draw sprite quad
         if (buffers.IndexCount > 0)
         {
-            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, null);
+            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, 0);
             Stats.DrawCalls++;
         }
     }
@@ -1032,27 +1045,27 @@ public class Renderer : IDisposable
         var gl = _context.GL;
 
         // Position
-        if (shader.Attributes.TryGetValue("position", out uint posLoc) && buffers.VertexBuffer != 0)
+        if (shader.Attributes.TryGetValue("position", out int posLoc) && posLoc >= 0 && buffers.VertexBuffer != 0)
         {
             gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.VertexBuffer);
-            gl.EnableVertexAttribArray(posLoc);
-            gl.VertexAttribPointer(posLoc, 3, VertexAttribPointerType.Float, false, 0, null);
+            gl.EnableVertexAttribArray((uint)posLoc);
+            gl.VertexAttribPointer((uint)posLoc, 3, VertexAttribPointerType.Float, false, 0, 0);
         }
 
         // Normal
-        if (shader.Attributes.TryGetValue("normal", out uint normLoc) && buffers.NormalBuffer != 0)
+        if (shader.Attributes.TryGetValue("normal", out int normLoc) && normLoc >= 0 && buffers.NormalBuffer != 0)
         {
             gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.NormalBuffer);
-            gl.EnableVertexAttribArray(normLoc);
-            gl.VertexAttribPointer(normLoc, 3, VertexAttribPointerType.Float, false, 0, null);
+            gl.EnableVertexAttribArray((uint)normLoc);
+            gl.VertexAttribPointer((uint)normLoc, 3, VertexAttribPointerType.Float, false, 0, 0);
         }
 
         // UV
-        if (shader.Attributes.TryGetValue("uv", out uint uvLoc) && buffers.UVBuffer != 0)
+        if (shader.Attributes.TryGetValue("uv", out int uvLoc) && uvLoc >= 0 && buffers.UVBuffer != 0)
         {
             gl.BindBuffer(BufferTargetARB.ArrayBuffer, buffers.UVBuffer);
-            gl.EnableVertexAttribArray(uvLoc);
-            gl.VertexAttribPointer(uvLoc, 2, VertexAttribPointerType.Float, false, 0, null);
+            gl.EnableVertexAttribArray((uint)uvLoc);
+            gl.VertexAttribPointer((uint)uvLoc, 2, VertexAttribPointerType.Float, false, 0, 0);
         }
 
         // Bind index buffer
@@ -1346,6 +1359,8 @@ public class Renderer : IDisposable
 internal class RenderItem
 {
     public Object3D Object { get; set; } = null!;
+    public Material Material { get; set; } = null!;
+    public Geometry? Geometry { get; set; }
     public float Z { get; set; }
 }
 

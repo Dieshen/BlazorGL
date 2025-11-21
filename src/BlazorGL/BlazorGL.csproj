@@ -22,4 +22,9 @@
     <ProjectReference Include="..\BlazorGL.Extensions\BlazorGL.Extensions.csproj" />
   </ItemGroup>
 
+  <Target Name="BuildWebGLAssets" BeforeTargets="Build" Condition="Exists('$(MSBuildThisFileDirectory)package.json') and (Exists('$(MSBuildThisFileDirectory)node_modules/.bin/tsc') or Exists('$(MSBuildThisFileDirectory)node_modules\\.bin\\tsc.cmd'))">
+    <Message Importance="High" Text="Building WebGL interop assets (tsc)..." />
+    <Exec Command="npm run build:webgl" WorkingDirectory="$(MSBuildThisFileDirectory)" />
+  </Target>
+
 </Project>

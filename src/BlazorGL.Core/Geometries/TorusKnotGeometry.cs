@@ -15,8 +15,8 @@ public class TorusKnotGeometry : Geometry
 
     private void BuildTorusKnot(float radius, float tube, int tubularSegments, int radialSegments, int p, int q)
     {
-        tubularSegments = Math.Max(3, tubularSegments);
-        radialSegments = Math.Max(3, radialSegments);
+        tubularSegments = System.Math.Max(3, tubularSegments);
+        radialSegments = System.Math.Max(3, radialSegments);
 
         var vertices = new List<float>();
         var normals = new List<float>();

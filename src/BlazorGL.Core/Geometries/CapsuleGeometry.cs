@@ -14,8 +14,8 @@ public class CapsuleGeometry : Geometry
 
     private void BuildCapsule(float radius, float length, int capSegments, int radialSegments)
     {
-        capSegments = Math.Max(1, capSegments);
-        radialSegments = Math.Max(3, radialSegments);
+        capSegments = System.Math.Max(1, capSegments);
+        radialSegments = System.Math.Max(3, radialSegments);
 
         var vertices = new List<float>();
         var normals = new List<float>();

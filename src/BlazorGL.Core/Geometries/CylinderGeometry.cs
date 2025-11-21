@@ -16,8 +16,8 @@ public class CylinderGeometry : Geometry
     private void BuildCylinder(float radiusTop, float radiusBottom, float height,
                               int radialSegments, int heightSegments, bool openEnded)
     {
-        radialSegments = Math.Max(3, radialSegments);
-        heightSegments = Math.Max(1, heightSegments);
+        radialSegments = System.Math.Max(3, radialSegments);
+        heightSegments = System.Math.Max(1, heightSegments);
 
         var vertices = new List<float>();
         var normals = new List<float>();

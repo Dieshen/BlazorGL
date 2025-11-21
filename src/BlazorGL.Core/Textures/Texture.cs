@@ -1,4 +1,4 @@
-using Silk.NET.WebGL;
+using BlazorGL.Core.WebGL;
 
 namespace BlazorGL.Core.Textures;
 
@@ -13,6 +13,11 @@ public class Texture : IDisposable
     /// WebGL texture handle
     /// </summary>
     public uint TextureId { get; internal set; }
+
+    /// <summary>
+    /// Optional human-readable identifier
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// Texture width

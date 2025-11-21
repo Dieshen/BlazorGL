@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 
 namespace BlazorGL.Core;
@@ -5,11 +6,13 @@ namespace BlazorGL.Core;
 /// <summary>
 /// Base class for all objects in the 3D scene graph
 /// </summary>
-public abstract class Object3D
+public class Object3D
 {
     private Vector3 _position = Vector3.Zero;
     private Quaternion _rotation = Quaternion.Identity;
+    private Vector3 _rotationEuler = Vector3.Zero;
     private Vector3 _scale = Vector3.One;
+    private Vector3 _up = Vector3.UnitY;
     private Matrix4x4 _localMatrix = Matrix4x4.Identity;
     private Matrix4x4 _worldMatrix = Matrix4x4.Identity;
     private bool _matrixNeedsUpdate = true;
@@ -26,9 +29,30 @@ public abstract class Object3D
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
+    /// Object type identifier (mirrors Three.js API)
+    /// </summary>
+    public string Type { get; protected set; } = "Object3D";
+
+    /// <summary>
     /// Whether the object is visible in the scene
     /// </summary>
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Up vector used for orientation helpers
+    /// </summary>
+    public Vector3 Up
+    {
+        get => _up;
+        set
+        {
+            if (value == Vector3.Zero)
+                throw new ArgumentException("Up vector cannot be zero.", nameof(value));
+
+            _up = Vector3.Normalize(value);
+            _matrixNeedsUpdate = true;
+        }
+    }
 
     /// <summary>
     /// User-defined data attached to this object
@@ -49,17 +73,23 @@ public abstract class Object3D
     }
 
     /// <summary>
-    /// Local rotation as a quaternion
+    /// Local rotation expressed as Euler angles (radians, order XYZ)
     /// </summary>
-    public Quaternion Rotation
+    public Vector3 Rotation
     {
-        get => _rotation;
+        get => _rotationEuler;
         set
         {
-            _rotation = value;
+            _rotationEuler = value;
+            _rotation = Quaternion.CreateFromYawPitchRoll(value.Y, value.X, value.Z);
             _matrixNeedsUpdate = true;
         }
     }
+
+    /// <summary>
+    /// Internal quaternion representation used for matrix generation
+    /// </summary>
+    internal Quaternion RotationQuaternion => _rotation;
 
     /// <summary>
     /// Local scale
@@ -136,6 +166,11 @@ public abstract class Object3D
     }
 
     /// <summary>
+    /// Backward compatible alias matching the Three.js style API
+    /// </summary>
+    public void AddChild(Object3D child) => Add(child);
+
+    /// <summary>
     /// Removes a child object
     /// </summary>
     public void Remove(Object3D child)
@@ -145,6 +180,11 @@ public abstract class Object3D
             child._parent = null;
         }
     }
+
+    /// <summary>
+    /// Backward compatible alias matching the Three.js style API
+    /// </summary>
+    public void RemoveChild(Object3D child) => Remove(child);
 
     /// <summary>
     /// Removes all children
@@ -195,16 +235,20 @@ public abstract class Object3D
     }
 
     /// <summary>
-    /// Makes the object look at a target position
+    /// Makes the object look at a target position using default up vector (0,1,0)
     /// </summary>
-    public void LookAt(Vector3 target)
+    public void LookAt(Vector3 target) => LookAt(target, Up);
+
+    /// <summary>
+    /// Makes the object look at a target position with a specific up vector
+    /// </summary>
+    public void LookAt(Vector3 target, Vector3 up)
     {
         var direction = Vector3.Normalize(target - Position);
 
         // Calculate rotation to look at target
-        // Assuming default forward is -Z and up is +Y
+        // Assuming default forward is -Z
         var forward = -Vector3.UnitZ;
-        var up = Vector3.UnitY;
 
         // Handle edge case when looking straight up or down
         if (MathF.Abs(Vector3.Dot(direction, up)) > 0.999f)
@@ -226,7 +270,7 @@ public abstract class Object3D
             var angle = MathF.Acos(Vector3.Dot(forward, direction));
             _rotation = Quaternion.CreateFromAxisAngle(Vector3.Normalize(rotationAxis), angle);
         }
-
+        _rotationEuler = QuaternionToEuler(_rotation);
         _matrixNeedsUpdate = true;
     }
 
@@ -236,6 +280,7 @@ public abstract class Object3D
     public void RotateX(float angle)
     {
         _rotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitX, angle);
+        _rotationEuler = QuaternionToEuler(_rotation);
         _matrixNeedsUpdate = true;
     }
 
@@ -245,6 +290,7 @@ public abstract class Object3D
     public void RotateY(float angle)
     {
         _rotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, angle);
+        _rotationEuler = QuaternionToEuler(_rotation);
         _matrixNeedsUpdate = true;
     }
 
@@ -254,8 +300,53 @@ public abstract class Object3D
     public void RotateZ(float angle)
     {
         _rotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitZ, angle);
+        _rotationEuler = QuaternionToEuler(_rotation);
         _matrixNeedsUpdate = true;
     }
+
+    /// <summary>
+    /// Updates the local transformation matrix to match current position/rotation/scale
+    /// </summary>
+    public void UpdateMatrix()
+    {
+        UpdateLocalMatrix();
+    }
+
+    /// <summary>
+    /// Updates world matrices. When <paramref name="updateChildren"/> is true,
+    /// also refreshes all descendant transforms.
+    /// </summary>
+    public void UpdateWorldMatrix(bool force = false, bool updateChildren = true)
+    {
+        if (force || _matrixNeedsUpdate)
+        {
+            UpdateLocalMatrix();
+            force = true;
+        }
+
+        if (_parent != null)
+        {
+            _worldMatrix = LocalMatrix * _parent._worldMatrix;
+        }
+        else
+        {
+            _worldMatrix = LocalMatrix;
+        }
+
+        if (updateChildren)
+        {
+            foreach (var child in Children)
+            {
+                child.UpdateWorldMatrix(force, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Alias for compatibility with the previous API
+    /// </summary>
+    public void UpdateMatrixWorld(bool force = false, bool updateChildren = true) =>
+        UpdateWorldMatrix(force, updateChildren);
 
     /// <summary>
     /// Translates along the X axis
@@ -327,23 +418,27 @@ public abstract class Object3D
     }
 
     /// <summary>
-    /// Updates the world transformation matrix
+    /// Updates the world transformation matrix (invoked from properties)
     /// </summary>
     private void UpdateWorldMatrix()
     {
-        if (_matrixNeedsUpdate)
-        {
-            UpdateLocalMatrix();
-        }
+        UpdateWorldMatrix(_matrixNeedsUpdate, false);
+    }
 
-        if (_parent != null)
-        {
-            _worldMatrix = LocalMatrix * _parent.WorldMatrix;
-        }
-        else
-        {
-            _worldMatrix = LocalMatrix;
-        }
+    private static Vector3 QuaternionToEuler(Quaternion q)
+    {
+        var sinrCosp = 2 * (q.W * q.X + q.Y * q.Z);
+        var cosrCosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
+        var roll = MathF.Atan2(sinrCosp, cosrCosp);
+
+        var sinp = 2 * (q.W * q.Y - q.Z * q.X);
+        float pitch = MathF.Abs(sinp) >= 1 ? MathF.CopySign(MathF.PI / 2, sinp) : MathF.Asin(sinp);
+
+        var sinyCosp = 2 * (q.W * q.Z + q.X * q.Y);
+        var cosyCosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+        var yaw = MathF.Atan2(sinyCosp, cosyCosp);
+
+        return new Vector3(pitch, yaw, roll);
     }
 
     public override string ToString() => $"{GetType().Name}(Name: {Name}, Position: {Position})";

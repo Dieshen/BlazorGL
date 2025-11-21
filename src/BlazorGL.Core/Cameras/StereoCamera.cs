@@ -99,4 +99,12 @@ public class StereoCamera : Camera
             CameraR.ProjectionMatrix = CameraR.ProjectionMatrix;
         }
     }
+
+    public override void UpdateProjectionMatrix()
+    {
+        CameraL.UpdateProjectionMatrix();
+        CameraR.UpdateProjectionMatrix();
+        // Use left eye projection as representative for the stereo rig
+        _projectionMatrix = CameraL.ProjectionMatrix;
+    }
 }

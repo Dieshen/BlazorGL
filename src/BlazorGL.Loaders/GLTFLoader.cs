@@ -5,6 +5,7 @@ using BlazorGL.Core.Materials;
 using BlazorGL.Core.Cameras;
 using System.Numerics;
 using System.Text.Json.Serialization;
+using BlazorGL.Core.Animation;
 
 namespace BlazorGL.Loaders;
 
@@ -210,7 +211,8 @@ public class GLTFLoader
 
                 if (node.Rotation != null && node.Rotation.Length >= 4)
                 {
-                    obj.Rotation = new Quaternion(node.Rotation[0], node.Rotation[1], node.Rotation[2], node.Rotation[3]);
+                    var q = new Quaternion(node.Rotation[0], node.Rotation[1], node.Rotation[2], node.Rotation[3]);
+                    obj.Rotation = QuaternionToEuler(q);
                 }
 
                 if (node.Scale != null && node.Scale.Length >= 3)
@@ -514,6 +516,22 @@ public class GLTFLoader
             indices[i] = i;
         return indices;
     }
+
+    private static Vector3 QuaternionToEuler(Quaternion q)
+    {
+        var sinrCosp = 2 * (q.W * q.X + q.Y * q.Z);
+        var cosrCosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
+        var roll = MathF.Atan2(sinrCosp, cosrCosp);
+
+        var sinp = 2 * (q.W * q.Y - q.Z * q.X);
+        float pitch = MathF.Abs(sinp) >= 1 ? MathF.CopySign(MathF.PI / 2, sinp) : MathF.Asin(sinp);
+
+        var sinyCosp = 2 * (q.W * q.Z + q.X * q.Y);
+        var cosyCosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+        var yaw = MathF.Atan2(sinyCosp, cosyCosp);
+
+        return new Vector3(pitch, yaw, roll);
+    }
 }
 
 /// <summary>
@@ -522,7 +540,7 @@ public class GLTFLoader
 public class GLTFScene
 {
     public Scene Scene { get; set; } = new();
-    public List<Extensions.Animation.AnimationClip> Animations { get; set; } = new();
+    public List<AnimationClip> Animations { get; set; } = new();
     public List<Camera> Cameras { get; set; } = new();
 }
 

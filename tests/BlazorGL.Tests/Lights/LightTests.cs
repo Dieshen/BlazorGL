@@ -1,5 +1,7 @@
 using Xunit;
+using BlazorGL.Core;
 using BlazorGL.Core.Lights;
+using BlazorGL.Core.Math;
 using System.Numerics;
 
 namespace BlazorGL.Tests.Lights;
@@ -9,7 +11,7 @@ public class LightTests
     [Fact]
     public void AmbientLight_InitializesCorrectly()
     {
-        var light = new AmbientLight(new Math.Color(1, 1, 1), 0.5f);
+        var light = new AmbientLight(new Color(1, 1, 1), 0.5f);
 
         Assert.Equal(0.5f, light.Intensity);
         Assert.Equal("AmbientLight", light.Name);
@@ -36,7 +38,7 @@ public class LightTests
     [Fact]
     public void PointLight_HasDistanceAndDecay()
     {
-        var light = new PointLight(new Math.Color(1, 0, 0), 1.0f, 100f, 2.0f);
+        var light = new PointLight(new Color(1, 0, 0), 1.0f, 100f, 2.0f);
 
         Assert.Equal(100f, light.Distance);
         Assert.Equal(2.0f, light.Decay);
@@ -73,8 +75,8 @@ public class LightTests
     [Fact]
     public void HemisphereLight_HasSkyAndGroundColors()
     {
-        var skyColor = new Math.Color(0.5f, 0.7f, 1.0f);
-        var groundColor = new Math.Color(0.3f, 0.2f, 0.1f);
+        var skyColor = new Color(0.5f, 0.7f, 1.0f);
+        var groundColor = new Color(0.3f, 0.2f, 0.1f);
 
         var light = new HemisphereLight(skyColor, groundColor, 1.0f);
 
@@ -85,7 +87,7 @@ public class LightTests
     [Fact]
     public void RectAreaLight_HasWidthAndHeight()
     {
-        var light = new RectAreaLight(new Math.Color(1, 1, 1), 1.0f, 2.0f, 3.0f);
+        var light = new RectAreaLight(new Color(1, 1, 1), 1.0f, 2.0f, 3.0f);
 
         Assert.Equal(2.0f, light.Width);
         Assert.Equal(3.0f, light.Height);
