@@ -1,7 +1,5 @@
 # BlazorGL
 
-**Version 1.0.0**
-
 A 3D rendering library for Blazor WebAssembly that keeps the API in C# while using a JS-backed WebGL module under the hood.
 
 [![.NET](https://img.shields.io/badge/.NET-8.0-blue)](https://dotnet.microsoft.com/) [![WebGL](https://img.shields.io/badge/WebGL-2.0%20%2B%201.0%20fallback-orange)](https://www.khronos.org/webgl/) [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)

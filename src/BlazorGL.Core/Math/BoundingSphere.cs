@@ -28,25 +28,53 @@ public struct BoundingSphere
     /// </summary>
     public static BoundingSphere FromPoints(IEnumerable<Vector3> points)
     {
-        var pointList = points.ToList();
+        var pointList = points as IList<Vector3> ?? points.ToList();
         if (pointList.Count == 0)
             return new BoundingSphere(Vector3.Zero, 0);
 
-        // Simple approach: use centroid and maximum distance
-        var center = Vector3.Zero;
-        foreach (var point in pointList)
-            center += point;
-        center /= pointList.Count;
+        // Ritter approximation: start with the widest axis pair
+        var minX = pointList[0];
+        var maxX = pointList[0];
+        var minY = pointList[0];
+        var maxY = pointList[0];
+        var minZ = pointList[0];
+        var maxZ = pointList[0];
 
-        float maxDistanceSq = 0;
         foreach (var point in pointList)
         {
-            var distSq = Vector3.DistanceSquared(center, point);
-            if (distSq > maxDistanceSq)
-                maxDistanceSq = distSq;
+            if (point.X < minX.X) minX = point;
+            if (point.X > maxX.X) maxX = point;
+            if (point.Y < minY.Y) minY = point;
+            if (point.Y > maxY.Y) maxY = point;
+            if (point.Z < minZ.Z) minZ = point;
+            if (point.Z > maxZ.Z) maxZ = point;
         }
 
-        return new BoundingSphere(center, MathF.Sqrt(maxDistanceSq));
+        var distX = Vector3.DistanceSquared(minX, maxX);
+        var distY = Vector3.DistanceSquared(minY, maxY);
+        var distZ = Vector3.DistanceSquared(minZ, maxZ);
+
+        var (pointA, pointB) = distX > distY
+            ? (distX > distZ ? (minX, maxX) : (minZ, maxZ))
+            : (distY > distZ ? (minY, maxY) : (minZ, maxZ));
+
+        var center = (pointA + pointB) * 0.5f;
+        var radius = MathF.Sqrt(Vector3.DistanceSquared(pointA, pointB)) * 0.5f;
+
+        foreach (var point in pointList)
+        {
+            var offset = point - center;
+            var distance = offset.Length();
+            if (distance <= radius || distance <= float.Epsilon)
+                continue;
+
+            var newRadius = (radius + distance) * 0.5f;
+            var direction = offset / distance;
+            center += direction * (distance - radius) * 0.5f;
+            radius = newRadius;
+        }
+
+        return new BoundingSphere(center, radius);
     }
 
     /// <summary>

@@ -41,11 +41,13 @@ public class Mesh : Object3D
     public Mesh()
     {
         Name = "Mesh";
+        Type = "Mesh";
     }
 
     public Mesh(Geometry geometry, Material material)
     {
         Name = "Mesh";
+        Type = "Mesh";
         Geometry = geometry;
         Material = material;
     }

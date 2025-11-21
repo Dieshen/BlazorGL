@@ -7,10 +7,10 @@ namespace BlazorGL.Core.Cameras;
 /// </summary>
 public class PerspectiveCamera : Camera
 {
-    private float _fov = 75f;
+    private float _fov = 50f;
     private float _aspect = 1.0f;
     private float _near = 0.1f;
-    private float _far = 1000f;
+    private float _far = 2000f;
 
     /// <summary>
     /// Field of view in degrees
@@ -67,7 +67,7 @@ public class PerspectiveCamera : Camera
     /// <summary>
     /// Creates a new perspective camera with default configuration.
     /// </summary>
-    public PerspectiveCamera() : this(75f, 1f, 0.1f, 1000f)
+    public PerspectiveCamera() : this(50f, 1f, 0.1f, 2000f)
     {
     }
 
