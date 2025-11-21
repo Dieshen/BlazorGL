@@ -113,6 +113,104 @@ public class Renderer : IDisposable
     }
 
     /// <summary>
+    /// Renders scene depth to a render target for post-processing
+    /// </summary>
+    public void RenderDepth(Scene scene, Camera camera, RenderTarget target)
+    {
+        // Set render target
+        SetRenderTarget(target);
+
+        // Clear depth buffer
+        _context.Clear(true, true, false);
+
+        // Collect render items
+        var renderList = new List<RenderItem>();
+        var frustum = new Math.Frustum();
+        frustum.SetFromProjectionMatrix(camera.ViewMatrix * camera.ProjectionMatrix);
+        CollectRenderItems(scene, renderList, frustum);
+
+        // Render each item with depth material
+        var depthMaterial = new DepthMaterial();
+        if (camera is PerspectiveCamera perspCamera)
+        {
+            depthMaterial.Near = perspCamera.Near;
+            depthMaterial.Far = perspCamera.Far;
+        }
+
+        foreach (var item in renderList)
+        {
+            if (item.Object is Mesh mesh)
+            {
+                RenderMeshWithMaterial(mesh, camera, depthMaterial);
+            }
+        }
+
+        // Restore default framebuffer
+        SetRenderTarget(null);
+    }
+
+    /// <summary>
+    /// Renders a mesh with a specific material override
+    /// </summary>
+    private void RenderMeshWithMaterial(Mesh mesh, Camera camera, Material material)
+    {
+        var geometry = mesh.Geometry;
+
+        // Compile shader if needed
+        if (material.NeedsCompile || !material.Shader.IsCompiled)
+        {
+            material.OnBeforeCompile(material.Shader);
+            material.Shader.Compile(_context.GL);
+            material.NeedsCompile = false;
+        }
+
+        // Use shader
+        if (_state.CurrentShader != material.Shader)
+        {
+            material.Shader.Use(_context.GL);
+            _state.CurrentShader = material.Shader;
+        }
+
+        // Update material state
+        ApplyMaterialState(material);
+
+        // Get geometry buffers
+        var buffers = _context.GetGeometryBuffers(geometry);
+
+        // Bind VAO
+        if (_state.CurrentVAO != buffers.VAO)
+        {
+            _context.GL.BindVertexArray(buffers.VAO);
+            _state.CurrentVAO = buffers.VAO;
+
+            // Set up attributes
+            SetupAttributes(material.Shader, buffers);
+        }
+
+        // Set standard uniforms for depth rendering
+        var gl = _context.GL;
+        var modelMatrix = mesh.WorldMatrix;
+        var viewMatrix = camera.ViewMatrix;
+        var projectionMatrix = camera.ProjectionMatrix;
+        var modelViewMatrix = modelMatrix * viewMatrix;
+
+        _context.SetUniform(material.Shader.GetUniformLocation(gl, "modelMatrix"), modelMatrix);
+        _context.SetUniform(material.Shader.GetUniformLocation(gl, "viewMatrix"), viewMatrix);
+        _context.SetUniform(material.Shader.GetUniformLocation(gl, "projectionMatrix"), projectionMatrix);
+        _context.SetUniform(material.Shader.GetUniformLocation(gl, "modelViewMatrix"), modelViewMatrix);
+
+        // Set material uniforms
+        material.UpdateUniforms();
+        SetMaterialUniforms(material);
+
+        // Draw
+        if (buffers.IndexCount > 0)
+        {
+            _context.GL.DrawElements(PrimitiveType.Triangles, (uint)buffers.IndexCount, DrawElementsType.UnsignedInt, 0);
+        }
+    }
+
+    /// <summary>
     /// Renders a scene with a camera
     /// </summary>
     public void Render(Scene scene, Camera camera)
@@ -128,9 +226,12 @@ public class Renderer : IDisposable
             _context.Clear(true, true, false);
         }
 
+        // Create frustum for culling
+        var frustum = new Math.Frustum().SetFromProjectionMatrix(camera.ViewProjectionMatrix);
+
         // Collect render items
         var renderList = new List<RenderItem>();
-        CollectRenderItems(scene, renderList);
+        CollectRenderItems(scene, renderList, frustum);
 
         // Sort if needed
         if (SortObjects)
@@ -385,7 +486,7 @@ public class Renderer : IDisposable
     /// <summary>
     /// Collects renderable objects (meshes, lines, points, etc.)
     /// </summary>
-    private void CollectRenderItems(Object3D obj, List<RenderItem> renderList)
+    private void CollectRenderItems(Object3D obj, List<RenderItem> renderList, Math.Frustum frustum)
     {
         if (!obj.Visible)
             return;
@@ -430,6 +531,28 @@ public class Renderer : IDisposable
 
         if (isRenderable)
         {
+            Stats.TotalObjects++;
+
+            // Frustum culling
+            if (obj.FrustumCulled && geometry != null)
+            {
+                // Get world-space bounding sphere
+                var boundingSphere = geometry.BoundingSphere;
+                var worldBoundingSphere = boundingSphere.Transform(obj.WorldMatrix);
+
+                // Test against frustum
+                if (!frustum.IntersectsSphere(worldBoundingSphere))
+                {
+                    Stats.CulledObjects++;
+                    // Skip this object
+                    foreach (var child in obj.Children)
+                    {
+                        CollectRenderItems(child, renderList, frustum);
+                    }
+                    return;
+                }
+            }
+
             // Calculate distance from camera for sorting
             var worldPos = Vector3.Transform(Vector3.Zero, obj.WorldMatrix);
             float z = worldPos.Z;
@@ -445,7 +568,7 @@ public class Renderer : IDisposable
 
         foreach (var child in obj.Children)
         {
-            CollectRenderItems(child, renderList);
+            CollectRenderItems(child, renderList, frustum);
         }
     }
 
@@ -1332,6 +1455,113 @@ public class Renderer : IDisposable
             }
             _state.CurrentCullMode = material.CullMode;
         }
+
+        // Blending
+        if (material.Transparent)
+        {
+            gl.Enable(EnableCap.Blend);
+
+            // Blend equation
+            if (material.BlendEquation != _state.CurrentBlendEquation ||
+                material.BlendEquationAlpha != _state.CurrentBlendEquationAlpha)
+            {
+                gl.BlendEquationSeparate(
+                    material.BlendEquation.ToWebGL(),
+                    material.BlendEquationAlpha.ToWebGL()
+                );
+                _state.CurrentBlendEquation = material.BlendEquation;
+                _state.CurrentBlendEquationAlpha = material.BlendEquationAlpha;
+            }
+
+            // Blend function
+            if (material.BlendSrc != _state.CurrentBlendSrc ||
+                material.BlendDst != _state.CurrentBlendDst ||
+                material.BlendSrcAlpha != _state.CurrentBlendSrcAlpha ||
+                material.BlendDstAlpha != _state.CurrentBlendDstAlpha)
+            {
+                gl.BlendFuncSeparate(
+                    material.BlendSrc.ToWebGL(),
+                    material.BlendDst.ToWebGL(),
+                    material.BlendSrcAlpha.ToWebGL(),
+                    material.BlendDstAlpha.ToWebGL()
+                );
+                _state.CurrentBlendSrc = material.BlendSrc;
+                _state.CurrentBlendDst = material.BlendDst;
+                _state.CurrentBlendSrcAlpha = material.BlendSrcAlpha;
+                _state.CurrentBlendDstAlpha = material.BlendDstAlpha;
+            }
+        }
+        else
+        {
+            gl.Disable(EnableCap.Blend);
+        }
+
+        // Polygon offset
+        if (material.PolygonOffset != _state.PolygonOffset)
+        {
+            if (material.PolygonOffset)
+                gl.Enable(EnableCap.PolygonOffsetFill);
+            else
+                gl.Disable(EnableCap.PolygonOffsetFill);
+            _state.PolygonOffset = material.PolygonOffset;
+        }
+
+        if (material.PolygonOffset &&
+            (material.PolygonOffsetFactor != _state.PolygonOffsetFactor ||
+             material.PolygonOffsetUnits != _state.PolygonOffsetUnits))
+        {
+            gl.PolygonOffset(material.PolygonOffsetFactor, material.PolygonOffsetUnits);
+            _state.PolygonOffsetFactor = material.PolygonOffsetFactor;
+            _state.PolygonOffsetUnits = material.PolygonOffsetUnits;
+        }
+
+        // Stencil test
+        if (material.StencilTest != _state.StencilTest)
+        {
+            if (material.StencilTest)
+                gl.Enable(EnableCap.StencilTest);
+            else
+                gl.Disable(EnableCap.StencilTest);
+            _state.StencilTest = material.StencilTest;
+        }
+
+        if (material.StencilTest)
+        {
+            // Stencil function
+            if (material.StencilFunc != _state.StencilFunc ||
+                material.StencilRef != _state.StencilRef ||
+                material.StencilMask != _state.StencilMask)
+            {
+                gl.StencilFunc(
+                    material.StencilFunc.ToWebGL(),
+                    material.StencilRef,
+                    material.StencilMask
+                );
+                _state.StencilFunc = material.StencilFunc;
+                _state.StencilRef = material.StencilRef;
+                _state.StencilMask = material.StencilMask;
+            }
+
+            // Stencil operations
+            if (material.StencilFail != _state.StencilFail ||
+                material.StencilZFail != _state.StencilZFail ||
+                material.StencilZPass != _state.StencilZPass)
+            {
+                gl.StencilOp(
+                    material.StencilFail.ToWebGL(),
+                    material.StencilZFail.ToWebGL(),
+                    material.StencilZPass.ToWebGL()
+                );
+                _state.StencilFail = material.StencilFail;
+                _state.StencilZFail = material.StencilZFail;
+                _state.StencilZPass = material.StencilZPass;
+            }
+
+            // Stencil write mask
+            gl.StencilMask(material.StencilMask);
+        }
+
+        // Alpha test (handled in shader via discard based on material.AlphaTest uniform)
     }
 
     protected virtual void Dispose(bool disposing)
@@ -1374,6 +1604,8 @@ public class PerformanceStats
     public int DrawCalls { get; set; }
     public int Triangles { get; set; }
     public int Vertices { get; set; }
+    public int CulledObjects { get; set; }
+    public int TotalObjects { get; set; }
     public float FrameTime { get; private set; }
     public float FPS => FrameTime > 0 ? 1000f / FrameTime : 0;
 
@@ -1383,6 +1615,8 @@ public class PerformanceStats
         DrawCalls = 0;
         Triangles = 0;
         Vertices = 0;
+        CulledObjects = 0;
+        TotalObjects = 0;
     }
 
     public void EndFrame()

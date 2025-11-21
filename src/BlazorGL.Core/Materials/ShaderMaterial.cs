@@ -17,6 +17,12 @@ public class ShaderMaterial : Material
     /// </summary>
     public string FragmentShader { get; set; }
 
+    public ShaderMaterial()
+    {
+        VertexShader = string.Empty;
+        FragmentShader = string.Empty;
+    }
+
     public ShaderMaterial(string vertexShader, string fragmentShader)
     {
         VertexShader = vertexShader;

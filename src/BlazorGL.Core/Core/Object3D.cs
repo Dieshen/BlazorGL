@@ -39,6 +39,12 @@ public class Object3D
     public bool Visible { get; set; } = true;
 
     /// <summary>
+    /// Whether the object should be frustum culled (default: true)
+    /// Set to false to always render this object regardless of frustum
+    /// </summary>
+    public bool FrustumCulled { get; set; } = true;
+
+    /// <summary>
     /// Up vector used for orientation helpers
     /// </summary>
     public Vector3 Up

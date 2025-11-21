@@ -47,3 +47,67 @@ public enum DepthFunc
     GreaterOrEqual,
     Always
 }
+
+/// <summary>
+/// Blend equation for combining source and destination colors
+/// </summary>
+public enum BlendEquation
+{
+    Add,
+    Subtract,
+    ReverseSubtract,
+    Min,
+    Max
+}
+
+/// <summary>
+/// Blend factors for source and destination
+/// </summary>
+public enum BlendFactor
+{
+    Zero,
+    One,
+    SrcColor,
+    OneMinusSrcColor,
+    DstColor,
+    OneMinusDstColor,
+    SrcAlpha,
+    OneMinusSrcAlpha,
+    DstAlpha,
+    OneMinusDstAlpha,
+    ConstantColor,
+    OneMinusConstantColor,
+    ConstantAlpha,
+    OneMinusConstantAlpha,
+    SrcAlphaSaturate
+}
+
+/// <summary>
+/// Stencil test function
+/// </summary>
+public enum StencilFunc
+{
+    Never,
+    Less,
+    Equal,
+    LessOrEqual,
+    Greater,
+    NotEqual,
+    GreaterOrEqual,
+    Always
+}
+
+/// <summary>
+/// Stencil operation
+/// </summary>
+public enum StencilOp
+{
+    Keep,
+    Zero,
+    Replace,
+    Increment,
+    IncrementWrap,
+    Decrement,
+    DecrementWrap,
+    Invert
+}

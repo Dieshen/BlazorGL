@@ -969,12 +969,25 @@ void main() {
         public const string FragmentShader = @"#version 300 es
 precision highp float;
 
+const float PI = 3.14159265359;
+const float RECIPROCAL_PI = 0.31830988618;
+const float EPSILON = 1e-6;
+
 struct DirectionalLight {
     vec3 direction;
     vec3 color;
     float intensity;
 };
 
+struct PointLight {
+    vec3 position;
+    vec3 color;
+    float intensity;
+    float distance;
+    float decay;
+};
+
+// Material properties
 uniform vec3 color;
 uniform float opacity;
 uniform float metalness;
@@ -985,20 +998,55 @@ uniform float emissiveIntensity;
 // Advanced properties
 uniform float clearcoat;
 uniform float clearcoatRoughness;
+uniform vec2 clearcoatNormalScale;
 uniform float transmission;
 uniform float thickness;
+uniform float attenuationDistance;
+uniform vec3 attenuationColor;
 uniform float sheen;
 uniform vec3 sheenColor;
 uniform float sheenRoughness;
 uniform float iridescence;
 uniform float ior;
 
+// Base texture maps
 uniform sampler2D map;
 uniform bool useMap;
+uniform sampler2D metalnessMap;
+uniform bool useMetalnessMap;
+uniform sampler2D roughnessMap;
+uniform bool useRoughnessMap;
+uniform sampler2D normalMap;
+uniform bool useNormalMap;
+uniform sampler2D aoMap;
+uniform bool useAoMap;
 
+// Clearcoat maps
+uniform sampler2D clearcoatMap;
+uniform bool useClearcoatMap;
+uniform sampler2D clearcoatRoughnessMap;
+uniform bool useClearcoatRoughnessMap;
+uniform sampler2D clearcoatNormalMap;
+uniform bool useClearcoatNormalMap;
+
+// Transmission maps
+uniform sampler2D transmissionMap;
+uniform bool useTransmissionMap;
+uniform sampler2D thicknessMap;
+uniform bool useThicknessMap;
+
+// Sheen maps
+uniform sampler2D sheenColorMap;
+uniform bool useSheenColorMap;
+uniform sampler2D sheenRoughnessMap;
+uniform bool useSheenRoughnessMap;
+
+// Lights
 uniform vec3 ambientLightColor;
 uniform DirectionalLight directionalLights[4];
 uniform int numDirectionalLights;
+uniform PointLight pointLights[4];
+uniform int numPointLights;
 uniform vec3 cameraPosition;
 
 in vec2 vUv;
@@ -1008,50 +1056,298 @@ in vec3 vViewPosition;
 
 out vec4 fragColor;
 
-// Simplified PBR (full implementation would be much longer)
-void main() {
-    vec4 baseColor = vec4(color, opacity);
+// =======================
+// PBR BRDF Functions
+// =======================
 
+float pow2(float x) { return x * x; }
+float pow4(float x) { float x2 = x * x; return x2 * x2; }
+float pow5(float x) { float x2 = x * x; return x2 * x2 * x; }
+
+// GGX/Trowbridge-Reitz normal distribution function
+float D_GGX(float roughness, float NdotH) {
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float NdotH2 = NdotH * NdotH;
+    float denom = NdotH2 * (a2 - 1.0) + 1.0;
+    return a2 / (PI * denom * denom);
+}
+
+// Smith GGX geometry function
+float G_GGX_Smith(float roughness, float NdotV, float NdotL) {
+    float a = roughness * roughness;
+    float a2 = a * a;
+
+    float GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - a2) + a2);
+    float GGXL = NdotV * sqrt(NdotL * NdotL * (1.0 - a2) + a2);
+
+    return 0.5 / max(GGXV + GGXL, EPSILON);
+}
+
+// Schlick Fresnel approximation
+vec3 F_Schlick(vec3 F0, float VdotH) {
+    return F0 + (1.0 - F0) * pow5(1.0 - VdotH);
+}
+
+// Fresnel for clearcoat (always dielectric, F0 = 0.04)
+float F_Schlick_Clearcoat(float VdotH) {
+    float F0 = 0.04;
+    return F0 + (1.0 - F0) * pow5(1.0 - VdotH);
+}
+
+// Charlie sheen distribution (fabric)
+float D_Charlie(float roughness, float NdotH) {
+    float invAlpha = 1.0 / roughness;
+    float cos2h = NdotH * NdotH;
+    float sin2h = max(1.0 - cos2h, 0.0078125);
+    return (2.0 + invAlpha) * pow(sin2h, invAlpha * 0.5) / (2.0 * PI);
+}
+
+// Sheen visibility term
+float V_Ashikhmin(float NdotV, float NdotL) {
+    return 1.0 / (4.0 * (NdotL + NdotV - NdotL * NdotV));
+}
+
+// Compute normal from normal map
+vec3 perturbNormal(vec3 N, vec3 V, vec2 uv, sampler2D normalMap, vec2 scale) {
+    vec3 mapN = texture(normalMap, uv).xyz * 2.0 - 1.0;
+    mapN.xy *= scale;
+
+    vec3 Q1 = dFdx(vWorldPosition);
+    vec3 Q2 = dFdy(vWorldPosition);
+    vec2 st1 = dFdx(uv);
+    vec2 st2 = dFdy(uv);
+
+    vec3 T = normalize(Q1 * st2.t - Q2 * st1.t);
+    vec3 B = -normalize(cross(N, T));
+    mat3 TBN = mat3(T, B, N);
+
+    return normalize(TBN * mapN);
+}
+
+// =======================
+// Main PBR Calculation
+// =======================
+
+void main() {
+    // Sample base color
+    vec4 baseColor = vec4(color, opacity);
     if (useMap) {
         baseColor *= texture(map, vUv);
     }
+    vec3 albedo = baseColor.rgb;
 
-    vec3 normal = normalize(vNormal);
-    vec3 viewDir = normalize(cameraPosition - vWorldPosition);
+    // Sample material properties
+    float metallic = metalness;
+    if (useMetalnessMap) {
+        metallic *= texture(metalnessMap, vUv).b;
+    }
 
-    // Basic PBR calculation (simplified)
-    vec3 result = ambientLightColor * baseColor.rgb;
+    float roughnessValue = roughness;
+    if (useRoughnessMap) {
+        roughnessValue *= texture(roughnessMap, vUv).g;
+    }
+    roughnessValue = max(roughnessValue, 0.04); // Minimum roughness
 
+    // Ambient occlusion
+    float ao = 1.0;
+    if (useAoMap) {
+        ao = texture(aoMap, vUv).r;
+    }
+
+    // Setup geometry
+    vec3 N = normalize(vNormal);
+    vec3 V = normalize(cameraPosition - vWorldPosition);
+
+    // Apply normal map
+    if (useNormalMap) {
+        N = perturbNormal(N, V, vUv, normalMap, vec2(1.0));
+    }
+
+    float NdotV = abs(dot(N, V)) + EPSILON;
+
+    // F0 for dielectrics and metals
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, albedo, metallic);
+
+    // =======================
+    // Main Layer PBR
+    // =======================
+    vec3 Lo = vec3(0.0);
+
+    // Directional lights
     for (int i = 0; i < numDirectionalLights && i < 4; i++) {
-        vec3 lightDir = directionalLights[i].direction;
-        float NdotL = max(dot(normal, lightDir), 0.0);
+        vec3 L = normalize(-directionalLights[i].direction);
+        vec3 H = normalize(V + L);
+        vec3 radiance = directionalLights[i].color * directionalLights[i].intensity;
 
-        // Diffuse
-        vec3 diffuse = baseColor.rgb * (1.0 - metalness);
+        float NdotL = max(dot(N, L), 0.0);
+        float NdotH = max(dot(N, H), 0.0);
+        float VdotH = max(dot(V, H), 0.0);
 
-        // Specular (simplified)
-        vec3 halfDir = normalize(lightDir + viewDir);
-        float NdotH = max(dot(normal, halfDir), 0.0);
-        float spec = pow(NdotH, (1.0 - roughness) * 128.0);
-        vec3 specular = vec3(spec) * metalness;
+        // Cook-Torrance BRDF
+        float D = D_GGX(roughnessValue, NdotH);
+        float G = G_GGX_Smith(roughnessValue, NdotV, NdotL);
+        vec3 F = F_Schlick(F0, VdotH);
 
-        result += (diffuse + specular) * directionalLights[i].color *
-                  directionalLights[i].intensity * NdotL;
+        vec3 specular = D * G * F;
+
+        // Energy conservation
+        vec3 kS = F;
+        vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+
+        Lo += (kD * albedo * RECIPROCAL_PI + specular) * radiance * NdotL;
     }
 
-    // Add emissive
-    result += emissive * emissiveIntensity;
+    // Point lights
+    for (int i = 0; i < numPointLights && i < 4; i++) {
+        vec3 L = normalize(pointLights[i].position - vWorldPosition);
+        vec3 H = normalize(V + L);
+        float distance = length(pointLights[i].position - vWorldPosition);
 
-    // Apply advanced effects (simplified)
-    if (clearcoat > 0.0) {
-        result = mix(result, result * 1.2, clearcoat);
+        float attenuation = 1.0;
+        if (pointLights[i].distance > 0.0) {
+            attenuation = pow(clamp(1.0 - (distance / pointLights[i].distance), 0.0, 1.0), pointLights[i].decay);
+        }
+
+        vec3 radiance = pointLights[i].color * pointLights[i].intensity * attenuation;
+
+        float NdotL = max(dot(N, L), 0.0);
+        float NdotH = max(dot(N, H), 0.0);
+        float VdotH = max(dot(V, H), 0.0);
+
+        float D = D_GGX(roughnessValue, NdotH);
+        float G = G_GGX_Smith(roughnessValue, NdotV, NdotL);
+        vec3 F = F_Schlick(F0, VdotH);
+
+        vec3 specular = D * G * F;
+        vec3 kS = F;
+        vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+
+        Lo += (kD * albedo * RECIPROCAL_PI + specular) * radiance * NdotL;
     }
+
+    // =======================
+    // Clearcoat Layer
+    // =======================
+    vec3 clearcoatRadiance = vec3(0.0);
+    float clearcoatStrength = clearcoat;
+    if (useClearcoatMap) {
+        clearcoatStrength *= texture(clearcoatMap, vUv).r;
+    }
+
+    if (clearcoatStrength > 0.0) {
+        float clearcoatRough = clearcoatRoughness;
+        if (useClearcoatRoughnessMap) {
+            clearcoatRough *= texture(clearcoatRoughnessMap, vUv).g;
+        }
+        clearcoatRough = max(clearcoatRough, 0.04);
+
+        vec3 clearcoatNormal = N;
+        if (useClearcoatNormalMap) {
+            clearcoatNormal = perturbNormal(N, V, vUv, clearcoatNormalMap, clearcoatNormalScale);
+        }
+
+        float clearcoatNdotV = abs(dot(clearcoatNormal, V)) + EPSILON;
+
+        // Directional lights clearcoat contribution
+        for (int i = 0; i < numDirectionalLights && i < 4; i++) {
+            vec3 L = normalize(-directionalLights[i].direction);
+            vec3 H = normalize(V + L);
+            vec3 radiance = directionalLights[i].color * directionalLights[i].intensity;
+
+            float NdotL = max(dot(clearcoatNormal, L), 0.0);
+            float NdotH = max(dot(clearcoatNormal, H), 0.0);
+            float VdotH = max(dot(V, H), 0.0);
+
+            float D = D_GGX(clearcoatRough, NdotH);
+            float G = G_GGX_Smith(clearcoatRough, clearcoatNdotV, NdotL);
+            float F = F_Schlick_Clearcoat(VdotH);
+
+            clearcoatRadiance += D * G * F * radiance * NdotL;
+        }
+
+        // Attenuate base layer by clearcoat
+        Lo = Lo * (1.0 - clearcoatStrength * F_Schlick_Clearcoat(NdotV)) +
+             clearcoatRadiance * clearcoatStrength;
+    }
+
+    // =======================
+    // Sheen Layer (for fabric)
+    // =======================
     if (sheen > 0.0) {
-        float sheenAmount = pow(1.0 - max(dot(normal, viewDir), 0.0), 5.0);
-        result += sheenColor * sheen * sheenAmount;
+        vec3 sheenCol = sheenColor;
+        if (useSheenColorMap) {
+            sheenCol *= texture(sheenColorMap, vUv).rgb;
+        }
+
+        float sheenRough = sheenRoughness;
+        if (useSheenRoughnessMap) {
+            sheenRough *= texture(sheenRoughnessMap, vUv).a;
+        }
+
+        for (int i = 0; i < numDirectionalLights && i < 4; i++) {
+            vec3 L = normalize(-directionalLights[i].direction);
+            vec3 H = normalize(V + L);
+
+            float NdotL = max(dot(N, L), 0.0);
+            float NdotH = max(dot(N, H), 0.0);
+
+            float D = D_Charlie(sheenRough, NdotH);
+            float V_term = V_Ashikhmin(NdotV, NdotL);
+
+            vec3 sheenRadiance = sheenCol * D * V_term *
+                                directionalLights[i].color *
+                                directionalLights[i].intensity * NdotL;
+
+            Lo += sheenRadiance * sheen;
+        }
     }
 
-    fragColor = vec4(result, baseColor.a);
+    // =======================
+    // Transmission (simplified - would need refraction in real implementation)
+    // =======================
+    float transmissionValue = transmission;
+    if (useTransmissionMap) {
+        transmissionValue *= texture(transmissionMap, vUv).r;
+    }
+
+    if (transmissionValue > 0.0) {
+        // Simplified transmission - in real implementation would refract through object
+        vec3 transmittedLight = ambientLightColor * albedo;
+
+        // Beer's law absorption
+        if (attenuationDistance < 1e10) {
+            float thick = thickness;
+            if (useThicknessMap) {
+                thick *= texture(thicknessMap, vUv).g;
+            }
+            float absorptionFactor = -thick / attenuationDistance;
+            vec3 absorption = exp(absorptionFactor * (vec3(1.0) - attenuationColor));
+            transmittedLight *= absorption;
+        }
+
+        Lo = mix(Lo, transmittedLight, transmissionValue);
+    }
+
+    // =======================
+    // Final Output
+    // =======================
+
+    // Ambient lighting
+    vec3 ambient = ambientLightColor * albedo * ao;
+    vec3 finalColor = ambient + Lo;
+
+    // Emissive
+    finalColor += emissive * emissiveIntensity;
+
+    // Tone mapping
+    finalColor = finalColor / (finalColor + vec3(1.0));
+
+    // Gamma correction
+    finalColor = pow(finalColor, vec3(1.0 / 2.2));
+
+    fragColor = vec4(finalColor, baseColor.a);
 }";
     }
 

@@ -40,6 +40,17 @@ public sealed class GL : IAsyncDisposable, IDisposable
     public void CullFace(CullFaceMode mode) => _module.InvokeVoid("cullFace", _ctxId, mode.ToString());
     public void FrontFace(FrontFaceDirection dir) => _module.InvokeVoid("frontFace", _ctxId, dir.ToString());
     public void BlendFunc(BlendingFactor src, BlendingFactor dst) => _module.InvokeVoid("blendFunc", _ctxId, src.ToString(), dst.ToString());
+    public void BlendFuncSeparate(BlendingFactor srcRGB, BlendingFactor dstRGB, BlendingFactor srcAlpha, BlendingFactor dstAlpha) =>
+        _module.InvokeVoid("blendFuncSeparate", _ctxId, srcRGB.ToString(), dstRGB.ToString(), srcAlpha.ToString(), dstAlpha.ToString());
+    public void BlendEquation(BlendEquationMode mode) => _module.InvokeVoid("blendEquation", _ctxId, mode.ToString());
+    public void BlendEquationSeparate(BlendEquationMode modeRGB, BlendEquationMode modeAlpha) =>
+        _module.InvokeVoid("blendEquationSeparate", _ctxId, modeRGB.ToString(), modeAlpha.ToString());
+    public void PolygonOffset(float factor, float units) => _module.InvokeVoid("polygonOffset", _ctxId, factor, units);
+    public void StencilFunc(StencilFunction func, int reference, uint mask) =>
+        _module.InvokeVoid("stencilFunc", _ctxId, func.ToString(), reference, mask);
+    public void StencilOp(StencilOperation fail, StencilOperation zfail, StencilOperation zpass) =>
+        _module.InvokeVoid("stencilOp", _ctxId, fail.ToString(), zfail.ToString(), zpass.ToString());
+    public void StencilMask(uint mask) => _module.InvokeVoid("stencilMask", _ctxId, mask);
     public void Viewport(int x, int y, uint w, uint h) => _module.InvokeVoid("viewport", _ctxId, x, y, w, h);
     public void ClearColor(float r, float g, float b, float a) => _module.InvokeVoid("clearColor", _ctxId, r, g, b, a);
     public void Clear(params ClearBufferMask[] masks)

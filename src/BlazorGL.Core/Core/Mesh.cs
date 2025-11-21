@@ -29,11 +29,6 @@ public class Mesh : Object3D
     public bool ReceiveShadow { get; set; } = false;
 
     /// <summary>
-    /// Whether to perform frustum culling on this mesh
-    /// </summary>
-    public bool FrustumCulled { get; set; } = true;
-
-    /// <summary>
     /// Rendering order (lower values render first)
     /// </summary>
     public int RenderOrder { get; set; } = 0;

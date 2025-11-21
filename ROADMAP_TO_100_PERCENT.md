@@ -49,19 +49,19 @@ BlazorGL is a well-architected Three.js alternative for Blazor with strong core 
 
 ### What's Implemented (70%)
 
-| Category | Coverage | Status |
-|----------|----------|--------|
-| Core Architecture | 100% | Complete |
-| Geometries | 95% | Nearly Complete |
-| Materials | 85% | Good Coverage |
-| Lights & Shadows | 90% | Excellent |
-| Cameras | 80% | Missing Controls |
-| Loaders | 60% | Basic Formats Only |
-| Animation | 50% | Needs Interpolation |
-| Post-Processing | 10% | Infrastructure Only |
-| Controls | 0% | Not Started |
-| WebXR | 5% | Basic Stereo Only |
-| Audio | 0% | Not Started |
+| Category          | Coverage | Status              |
+| ----------------- | -------- | ------------------- |
+| Core Architecture | 100%     | Complete            |
+| Geometries        | 95%      | Nearly Complete     |
+| Materials         | 85%      | Good Coverage       |
+| Lights & Shadows  | 90%      | Excellent           |
+| Cameras           | 80%      | Missing Controls    |
+| Loaders           | 60%      | Basic Formats Only  |
+| Animation         | 50%      | Needs Interpolation |
+| Post-Processing   | 10%      | Infrastructure Only |
+| Controls          | 0%       | Not Started         |
+| WebXR             | 5%       | Basic Stereo Only   |
+| Audio             | 0%       | Not Started         |
 
 ### Critical Gaps
 
@@ -2411,42 +2411,42 @@ physicsWorld.Step(deltaTime); // In update loop
 
 ## Effort Estimates Summary
 
-| Phase | Duration | Focus | Deliverable |
-|-------|----------|-------|-------------|
-| **Phase 1** | 12-16 weeks | Interactive Features | Controls + Post-Processing |
-| **Phase 2** | 10-12 weeks | Visual Quality | Advanced Materials + Shadows |
-| **Phase 3** | 8-10 weeks | Animation & Content | Morphing + Loaders |
-| **Phase 4** | 12-16 weeks | Advanced Features | WebXR + Audio + More |
-| **Phase 5** | 8-12 weeks | Performance & Polish | Optimization + Docs |
-| **TOTAL** | **50-66 weeks** | Full Three.js Parity | Production-Ready |
+| Phase       | Duration        | Focus                | Deliverable                  |
+| ----------- | --------------- | -------------------- | ---------------------------- |
+| **Phase 1** | 12-16 weeks     | Interactive Features | Controls + Post-Processing   |
+| **Phase 2** | 10-12 weeks     | Visual Quality       | Advanced Materials + Shadows |
+| **Phase 3** | 8-10 weeks      | Animation & Content  | Morphing + Loaders           |
+| **Phase 4** | 12-16 weeks     | Advanced Features    | WebXR + Audio + More         |
+| **Phase 5** | 8-12 weeks      | Performance & Polish | Optimization + Docs          |
+| **TOTAL**   | **50-66 weeks** | Full Three.js Parity | Production-Ready             |
 
 ---
 
 ## Feature Category Effort Summary
 
-| Category | Items | Effort (weeks) | Priority |
-|----------|-------|----------------|----------|
-| Controls | 8 types | 4-6 | CRITICAL |
-| Post-Processing | 25+ effects | 6-8 | CRITICAL |
-| Materials | 15+ features | 2-3 | HIGH |
-| Textures | 12+ loaders/features | 3-4 | HIGH |
-| Animation | 10+ features | 3-4 | HIGH |
-| Geometry | 8+ utilities | 2-3 | MEDIUM |
-| Loaders | 15+ formats | 4-6 | MEDIUM |
-| Lighting/Shadows | 8+ features | 2-3 | HIGH |
-| Performance | 7+ optimizations | 3-4 | MEDIUM |
-| Raycasting | 6+ improvements | 1-2 | MEDIUM |
-| WebXR | Full VR/AR | 4-5 | LOW |
-| Audio | Complete system | 2-3 | LOW |
-| Physics | Adapter layer | 2-3 | LOW |
-| Advanced Rendering | 10+ techniques | 6-8 | LOW |
-| Debug Tools | Stats + helpers | 2 | CRITICAL |
-| Math | 20+ utilities | 2-3 | MEDIUM |
-| Objects | 5+ types | 1-2 | LOW |
-| Exporters | 5+ formats | 2-3 | MEDIUM |
-| WebGL 2 | Advanced features | 3-4 | LOW |
-| Testing | Comprehensive suite | Ongoing | HIGH |
-| Documentation | Full API + guides | 3-4 | HIGH |
+| Category           | Items                | Effort (weeks) | Priority |
+| ------------------ | -------------------- | -------------- | -------- |
+| Controls           | 8 types              | 4-6            | CRITICAL |
+| Post-Processing    | 25+ effects          | 6-8            | CRITICAL |
+| Materials          | 15+ features         | 2-3            | HIGH     |
+| Textures           | 12+ loaders/features | 3-4            | HIGH     |
+| Animation          | 10+ features         | 3-4            | HIGH     |
+| Geometry           | 8+ utilities         | 2-3            | MEDIUM   |
+| Loaders            | 15+ formats          | 4-6            | MEDIUM   |
+| Lighting/Shadows   | 8+ features          | 2-3            | HIGH     |
+| Performance        | 7+ optimizations     | 3-4            | MEDIUM   |
+| Raycasting         | 6+ improvements      | 1-2            | MEDIUM   |
+| WebXR              | Full VR/AR           | 4-5            | LOW      |
+| Audio              | Complete system      | 2-3            | LOW      |
+| Physics            | Adapter layer        | 2-3            | LOW      |
+| Advanced Rendering | 10+ techniques       | 6-8            | LOW      |
+| Debug Tools        | Stats + helpers      | 2              | CRITICAL |
+| Math               | 20+ utilities        | 2-3            | MEDIUM   |
+| Objects            | 5+ types             | 1-2            | LOW      |
+| Exporters          | 5+ formats           | 2-3            | MEDIUM   |
+| WebGL 2            | Advanced features    | 3-4            | LOW      |
+| Testing            | Comprehensive suite  | Ongoing        | HIGH     |
+| Documentation      | Full API + guides    | 3-4            | HIGH     |
 
 ---
 

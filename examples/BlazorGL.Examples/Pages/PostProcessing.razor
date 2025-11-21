@@ -1,0 +1,349 @@
+@page "/postprocessing"
+@using BlazorGL.Core
+@using BlazorGL.Core.Cameras
+@using BlazorGL.Core.Geometries
+@using BlazorGL.Core.Lights
+@using BlazorGL.Core.Materials
+@using BlazorGL.Core.Rendering
+@using BlazorGL.Extensions.PostProcessing
+@using System.Numerics
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+
+<h2>Post-Processing - BlazorGL</h2>
+
+<h1>Advanced Post-Processing Effects</h1>
+
+<div class="controls">
+    <h3>SSAO Controls</h3>
+    <div class="control-group">
+        <label>
+            Enable SSAO:
+            <input type="checkbox" @bind="enableSSAO" />
+        </label>
+    </div>
+    <div class="control-group">
+        <label>
+            Kernel Size: @ssaoKernelSize
+            <input type="range" min="8" max="64" step="8" @bind="ssaoKernelSize" />
+        </label>
+    </div>
+    <div class="control-group">
+        <label>
+            Radius: @ssaoRadius.ToString("F2")
+            <input type="range" min="0.1" max="2.0" step="0.1" value="@ssaoRadius" @oninput="@(e => ssaoRadius = float.Parse(e.Value?.ToString() ?? "0.5"))" />
+        </label>
+    </div>
+    <div class="control-group">
+        <label>
+            Power: @ssaoPower.ToString("F2")
+            <input type="range" min="0.5" max="3.0" step="0.1" value="@ssaoPower" @oninput="@(e => ssaoPower = float.Parse(e.Value?.ToString() ?? "1.5"))" />
+        </label>
+    </div>
+
+    <h3>FXAA Anti-Aliasing</h3>
+    <div class="control-group">
+        <label>
+            Enable FXAA:
+            <input type="checkbox" @bind="enableFXAA" />
+        </label>
+    </div>
+
+    <h3>Color Correction</h3>
+    <div class="control-group">
+        <label>
+            Enable Color Correction:
+            <input type="checkbox" @bind="enableColorCorrection" />
+        </label>
+    </div>
+    <div class="control-group">
+        <label>
+            Brightness: @colorBrightness.ToString("F2")
+            <input type="range" min="-0.5" max="0.5" step="0.05" value="@colorBrightness" @oninput="@(e => colorBrightness = float.Parse(e.Value?.ToString() ?? "0"))" />
+        </label>
+    </div>
+    <div class="control-group">
+        <label>
+            Contrast: @colorContrast.ToString("F2")
+            <input type="range" min="0.5" max="2.0" step="0.1" value="@colorContrast" @oninput="@(e => colorContrast = float.Parse(e.Value?.ToString() ?? "1"))" />
+        </label>
+    </div>
+    <div class="control-group">
+        <label>
+            Saturation: @colorSaturation.ToString("F2")
+            <input type="range" min="0.0" max="2.0" step="0.1" value="@colorSaturation" @oninput="@(e => colorSaturation = float.Parse(e.Value?.ToString() ?? "1"))" />
+        </label>
+    </div>
+</div>
+
+<div class="canvas-container">
+    <canvas @ref="canvasRef" width="1024" height="768"></canvas>
+</div>
+
+<div class="info">
+    <h3>Post-Processing Effects</h3>
+    <ul>
+        <li><strong>SSAO</strong>: Screen Space Ambient Occlusion adds realistic contact shadows</li>
+        <li><strong>FXAA</strong>: Fast anti-aliasing smooths jagged edges</li>
+        <li><strong>Color Correction</strong>: Adjust brightness, contrast, saturation for mood</li>
+    </ul>
+</div>
+
+@code {
+    private ElementReference canvasRef;
+    private Renderer? renderer;
+    private Scene? scene;
+    private PerspectiveCamera? camera;
+    private EffectComposer? composer;
+    private SSAOPass? ssaoPass;
+    private FXAAPass? fxaaPass;
+    private ColorCorrectionPass? colorCorrectionPass;
+
+    // SSAO parameters
+    private bool enableSSAO = true;
+    private int ssaoKernelSize = 32;
+    private float ssaoRadius = 0.5f;
+    private float ssaoPower = 1.5f;
+
+    // FXAA parameters
+    private bool enableFXAA = true;
+
+    // Color correction parameters
+    private bool enableColorCorrection = false;
+    private float colorBrightness = 0.0f;
+    private float colorContrast = 1.0f;
+    private float colorSaturation = 1.0f;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeScene();
+            StateHasChanged();
+        }
+    }
+
+    private async Task InitializeScene()
+    {
+        try
+        {
+            // Initialize renderer
+            renderer = new Renderer();
+            await renderer.InitializeAsync(canvasRef, JSRuntime);
+            renderer.SetSize(1024, 768);
+            renderer.SetClearColor(new BlazorGL.Core.Math.Color(0.1f, 0.1f, 0.15f));
+
+            // Create camera
+            camera = new PerspectiveCamera(45, 1024f / 768f, 0.1f, 100f);
+            camera.Position = new Vector3(0, 5, 10);
+            camera.LookAt(Vector3.Zero);
+
+            // Create scene
+            scene = new Scene();
+
+            // Add lights
+            var ambientLight = new AmbientLight(new BlazorGL.Core.Math.Color(0.3f, 0.3f, 0.3f), 0.5f);
+            scene.Add(ambientLight);
+
+            var directionalLight = new DirectionalLight(
+                new BlazorGL.Core.Math.Color(1f, 1f, 1f),
+                1.0f
+            );
+            directionalLight.Position = new Vector3(5, 10, 5);
+            scene.Add(directionalLight);
+
+            // Create complex geometry to showcase SSAO
+            CreateComplexScene();
+
+            // Setup post-processing
+            composer = new EffectComposer(renderer, 1024, 768);
+
+            // SSAO Pass
+            ssaoPass = new SSAOPass(renderer, camera, 1024, 768)
+            {
+                KernelSize = ssaoKernelSize,
+                Radius = ssaoRadius,
+                Power = ssaoPower,
+                Enabled = enableSSAO
+            };
+            composer.AddPass(ssaoPass);
+
+            // FXAA Pass
+            fxaaPass = new FXAAPass(1024, 768)
+            {
+                Enabled = enableFXAA
+            };
+            composer.AddPass(fxaaPass);
+
+            // Color Correction Pass
+            colorCorrectionPass = new ColorCorrectionPass()
+            {
+                Brightness = colorBrightness,
+                Contrast = colorContrast,
+                Saturation = colorSaturation,
+                Enabled = enableColorCorrection
+            };
+            composer.AddPass(colorCorrectionPass);
+
+            // Start render loop
+            _ = RenderLoop();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing scene: {ex.Message}");
+        }
+    }
+
+    private void CreateComplexScene()
+    {
+        if (scene == null) return;
+
+        // Create ground plane
+        var groundGeometry = new PlaneGeometry(20, 20);
+        var groundMaterial = new StandardMaterial
+        {
+            Color = new BlazorGL.Core.Math.Color(0.5f, 0.5f, 0.5f),
+            Roughness = 0.8f,
+            Metalness = 0.2f
+        };
+        var ground = new Mesh(groundGeometry, groundMaterial);
+        ground.RotateX((float)(-Math.PI / 2));
+        scene.Add(ground);
+
+        // Create multiple spheres at different positions
+        var sphereGeometry = new SphereGeometry(0.5f, 32, 32);
+        var sphereMaterial = new StandardMaterial
+        {
+            Color = new BlazorGL.Core.Math.Color(0.8f, 0.2f, 0.2f),
+            Roughness = 0.4f,
+            Metalness = 0.6f
+        };
+
+        for (int i = 0; i < 5; i++)
+        {
+            for (int j = 0; j < 5; j++)
+            {
+                var sphere = new Mesh(sphereGeometry, sphereMaterial);
+                sphere.Position = new Vector3((i - 2) * 2, 0.5f, (j - 2) * 2);
+                scene.Add(sphere);
+            }
+        }
+
+        // Add a torus for complexity
+        var torusGeometry = new TorusGeometry(1.5f, 0.4f, 32, 64);
+        var torusMaterial = new StandardMaterial
+        {
+            Color = new BlazorGL.Core.Math.Color(0.2f, 0.6f, 0.8f),
+            Roughness = 0.3f,
+            Metalness = 0.7f
+        };
+        var torus = new Mesh(torusGeometry, torusMaterial);
+        torus.Position = new Vector3(0, 2, 0);
+        scene.Add(torus);
+    }
+
+    private async Task RenderLoop()
+    {
+        while (true)
+        {
+            if (renderer == null || scene == null || camera == null || composer == null)
+                break;
+
+            // Update SSAO parameters
+            if (ssaoPass != null)
+            {
+                ssaoPass.Enabled = enableSSAO;
+                ssaoPass.KernelSize = ssaoKernelSize;
+                ssaoPass.Radius = ssaoRadius;
+                ssaoPass.Power = ssaoPower;
+            }
+
+            // Update FXAA
+            if (fxaaPass != null)
+            {
+                fxaaPass.Enabled = enableFXAA;
+            }
+
+            // Update color correction
+            if (colorCorrectionPass != null)
+            {
+                colorCorrectionPass.Enabled = enableColorCorrection;
+                colorCorrectionPass.Brightness = colorBrightness;
+                colorCorrectionPass.Contrast = colorContrast;
+                colorCorrectionPass.Saturation = colorSaturation;
+            }
+
+            // Rotate camera
+            float time = (float)DateTime.Now.TimeOfDay.TotalSeconds;
+            camera.Position = new Vector3(
+                (float)(Math.Cos(time * 0.3) * 10),
+                5,
+                (float)(Math.Sin(time * 0.3) * 10)
+            );
+            camera.LookAt(Vector3.Zero);
+
+            // Render with post-processing
+            composer.Render(scene, camera);
+
+            await Task.Delay(16); // ~60 FPS
+        }
+    }
+}
+
+<style>
+    .controls {
+        margin: 20px 0;
+        padding: 15px;
+        background: #f5f5f5;
+        border-radius: 8px;
+    }
+
+    .control-group {
+        margin: 10px 0;
+    }
+
+    .control-group label {
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .control-group input[type="range"] {
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .canvas-container {
+        margin: 20px 0;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+
+    .info {
+        margin: 20px 0;
+        padding: 15px;
+        background: #e8f4f8;
+        border-left: 4px solid #2196F3;
+        border-radius: 4px;
+    }
+
+    .info ul {
+        margin: 10px 0;
+    }
+
+    .info li {
+        margin: 5px 0;
+    }
+
+    h3 {
+        margin-top: 15px;
+        margin-bottom: 10px;
+    }
+</style>

@@ -8,7 +8,9 @@ public enum EnableCap
 {
     DepthTest,
     CullFace,
-    Blend
+    Blend,
+    PolygonOffsetFill,
+    StencilTest
 }
 
 public enum CullFaceMode
@@ -25,8 +27,54 @@ public enum FrontFaceDirection
 
 public enum BlendingFactor
 {
+    Zero,
+    One,
+    SrcColor,
+    OneMinusSrcColor,
+    DstColor,
+    OneMinusDstColor,
     SrcAlpha,
-    OneMinusSrcAlpha
+    OneMinusSrcAlpha,
+    DstAlpha,
+    OneMinusDstAlpha,
+    ConstantColor,
+    OneMinusConstantColor,
+    ConstantAlpha,
+    OneMinusConstantAlpha,
+    SrcAlphaSaturate
+}
+
+public enum BlendEquationMode
+{
+    FuncAdd,
+    FuncSubtract,
+    FuncReverseSubtract,
+    Min,
+    Max
+}
+
+public enum StencilFunction
+{
+    Never,
+    Less,
+    Equal,
+    LessEqual,
+    Greater,
+    NotEqual,
+    GreaterEqual,
+    Always
+}
+
+public enum StencilOperation
+{
+    Keep,
+    Zero,
+    Replace,
+    Increment,
+    IncrementWrap,
+    Decrement,
+    DecrementWrap,
+    Invert
 }
 
 public enum ClearBufferMask

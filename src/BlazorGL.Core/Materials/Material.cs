@@ -65,6 +65,91 @@ public abstract class Material : IDisposable
     }
 
     /// <summary>
+    /// Blending equation (how to combine source and destination)
+    /// </summary>
+    public BlendEquation BlendEquation { get; set; } = BlendEquation.Add;
+
+    /// <summary>
+    /// Blending equation for alpha channel
+    /// </summary>
+    public BlendEquation BlendEquationAlpha { get; set; } = BlendEquation.Add;
+
+    /// <summary>
+    /// Source blend factor
+    /// </summary>
+    public BlendFactor BlendSrc { get; set; } = BlendFactor.SrcAlpha;
+
+    /// <summary>
+    /// Destination blend factor
+    /// </summary>
+    public BlendFactor BlendDst { get; set; } = BlendFactor.OneMinusSrcAlpha;
+
+    /// <summary>
+    /// Source alpha blend factor
+    /// </summary>
+    public BlendFactor BlendSrcAlpha { get; set; } = BlendFactor.One;
+
+    /// <summary>
+    /// Destination alpha blend factor
+    /// </summary>
+    public BlendFactor BlendDstAlpha { get; set; } = BlendFactor.OneMinusSrcAlpha;
+
+    /// <summary>
+    /// Alpha test threshold (fragments with alpha below this are discarded)
+    /// </summary>
+    public float AlphaTest { get; set; } = 0.0f;
+
+    /// <summary>
+    /// Enable polygon offset (useful for decals, outlines, etc.)
+    /// </summary>
+    public bool PolygonOffset { get; set; } = false;
+
+    /// <summary>
+    /// Polygon offset factor
+    /// </summary>
+    public float PolygonOffsetFactor { get; set; } = 0.0f;
+
+    /// <summary>
+    /// Polygon offset units
+    /// </summary>
+    public float PolygonOffsetUnits { get; set; } = 0.0f;
+
+    /// <summary>
+    /// Enable stencil testing
+    /// </summary>
+    public bool StencilTest { get; set; } = false;
+
+    /// <summary>
+    /// Stencil function
+    /// </summary>
+    public StencilFunc StencilFunc { get; set; } = StencilFunc.Always;
+
+    /// <summary>
+    /// Stencil reference value
+    /// </summary>
+    public int StencilRef { get; set; } = 0;
+
+    /// <summary>
+    /// Stencil mask
+    /// </summary>
+    public uint StencilMask { get; set; } = 0xFFFFFFFF;
+
+    /// <summary>
+    /// Stencil operation when test fails
+    /// </summary>
+    public StencilOp StencilFail { get; set; } = StencilOp.Keep;
+
+    /// <summary>
+    /// Stencil operation when depth test fails
+    /// </summary>
+    public StencilOp StencilZFail { get; set; } = StencilOp.Keep;
+
+    /// <summary>
+    /// Stencil operation when both tests pass
+    /// </summary>
+    public StencilOp StencilZPass { get; set; } = StencilOp.Keep;
+
+    /// <summary>
     /// Shader program for this material
     /// </summary>
     public Shader Shader { get; protected set; } = null!;

@@ -23,11 +23,6 @@ public class Line : Object3D
     /// </summary>
     public int RenderOrder { get; set; } = 0;
 
-    /// <summary>
-    /// Whether to perform frustum culling on this line
-    /// </summary>
-    public bool FrustumCulled { get; set; } = true;
-
     public Line()
     {
         Name = "Line";

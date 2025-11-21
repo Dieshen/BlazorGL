@@ -23,11 +23,6 @@ public class Points : Object3D
     /// </summary>
     public int RenderOrder { get; set; } = 0;
 
-    /// <summary>
-    /// Whether to perform frustum culling on these points
-    /// </summary>
-    public bool FrustumCulled { get; set; } = true;
-
     public Points()
     {
         Name = "Points";
