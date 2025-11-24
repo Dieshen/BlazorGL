@@ -342,7 +342,10 @@ public sealed class TrackballControls : IAsyncDisposable
         {
             _eye = _camera.Position - _target;
 
-            var axis = Vector3.Cross(_rotateEnd, _rotateStart);
+            var moveDirection = _rotateEnd - _rotateStart;
+            moveDirection = Vector3.Normalize(moveDirection);
+
+            var axis = Vector3.Cross(moveDirection, _rotateEnd);
             axis = Vector3.Normalize(axis);
 
             angle *= RotateSpeed;
