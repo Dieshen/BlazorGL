@@ -171,7 +171,7 @@ public class VSMShadowTests
         {
             sum += w;
         }
-        Assert.True(Math.Abs(sum - 1.0f) < 0.001f);
+        Assert.True(System.Math.Abs(sum - 1.0f) < 0.001f);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public class VSMShadowTests
         int size = weights.Length;
         for (int i = 0; i < size / 2; i++)
         {
-            Assert.True(Math.Abs(weights[i] - weights[size - 1 - i]) < 0.0001f);
+            Assert.True(System.Math.Abs(weights[i] - weights[size - 1 - i]) < 0.0001f);
         }
     }
 

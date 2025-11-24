@@ -69,31 +69,27 @@ public class LoaderTests
     }
 
     [Fact]
-    public void DataTextureLoader_CreatesTexture()
+    public void DataTexture_CreatesFromByteArray()
     {
-        var loader = new DataTextureLoader();
-
         var data = new byte[256 * 256 * 4];
-        var texture = loader.Create(data, 256, 256);
+        var texture = new DataTexture(data, 256, 256);
 
         Assert.NotNull(texture);
         Assert.Equal(256, texture.Width);
         Assert.Equal(256, texture.Height);
-        Assert.Equal(data.Length, texture.Data.Length);
+        Assert.Equal(data.Length, texture.ImageData!.Length);
     }
 
     [Fact]
-    public void DataTextureLoader_CreatesFloatTexture()
+    public void DataTexture_CreatesFromFloatArray()
     {
-        var loader = new DataTextureLoader();
-
         var data = new float[64 * 64 * 4];
-        var texture = loader.CreateFloat(data, 64, 64);
+        var texture = new DataTexture(data, 64, 64);
 
         Assert.NotNull(texture);
         Assert.Equal(64, texture.Width);
         Assert.Equal(64, texture.Height);
-        Assert.Equal(DataTextureType.Float, texture.Type);
+        Assert.Equal(TextureDataType.Float, texture.DataType);
     }
 
     [Fact]
@@ -110,14 +106,13 @@ public class LoaderTests
     {
         var texture = new CompressedTexture
         {
-            Format = CompressedTextureFormat.RGB_S3TC_DXT1,
+            CompressionFormat = CompressedTextureFormat.BC1,
             Width = 512,
-            Height = 512,
-            MipmapCount = 1
+            Height = 512
         };
 
-        Assert.Equal(CompressedTextureFormat.RGB_S3TC_DXT1, texture.Format);
-        Assert.Equal(1, texture.MipmapCount);
+        Assert.Equal(CompressedTextureFormat.BC1, texture.CompressionFormat);
+        Assert.Equal(0, texture.Mipmaps.Count);
     }
 
     [Fact]

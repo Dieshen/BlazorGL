@@ -9,22 +9,28 @@
     <PackageId>BlazorGL</PackageId>
     <Version>1.0.0</Version>
     <Authors>Narcoleptic Fox LLC</Authors>
-    <Description>A comprehensive 3D rendering library for Blazor WebAssembly using pure C#</Description>
+    <Description>A comprehensive 3D rendering library for Blazor WebAssembly - Three.js alternative for .NET</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/narcoleptic-fox/BlazorGL</PackageProjectUrl>
     <RepositoryUrl>https://github.com/narcoleptic-fox/BlazorGL</RepositoryUrl>
-    <PackageTags>blazor;webgl;3d;rendering;graphics;wasm</PackageTags>
+    <PackageTags>blazor;webgl;3d;rendering;graphics;wasm;threejs;opengl</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BlazorGL.Core\BlazorGL.Core.csproj" />
-    <ProjectReference Include="..\BlazorGL.Loaders\BlazorGL.Loaders.csproj" />
-    <ProjectReference Include="..\BlazorGL.Extensions\BlazorGL.Extensions.csproj" />
+    <SupportedPlatform Include="browser" />
   </ItemGroup>
 
-  <Target Name="BuildWebGLAssets" BeforeTargets="Build" Condition="Exists('$(MSBuildThisFileDirectory)package.json') and (Exists('$(MSBuildThisFileDirectory)node_modules/.bin/tsc') or Exists('$(MSBuildThisFileDirectory)node_modules\\.bin\\tsc.cmd'))">
-    <Message Importance="High" Text="Building WebGL interop assets (tsc)..." />
-    <Exec Command="npm run build:webgl" WorkingDirectory="$(MSBuildThisFileDirectory)" />
-  </Target>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.0" />
+    <PackageReference Include="Microsoft.JSInterop" Version="8.0.0" />
+    <PackageReference Include="System.Text.Json" Version="8.0.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
 
 </Project>
