@@ -4,6 +4,7 @@ using FluentAssertions;
 using Moq;
 using Moq.Protected;
 using System.Net;
+using Xunit;
 
 namespace BlazorGL.Loaders.Tests.Textures;
 
