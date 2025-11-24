@@ -93,7 +93,23 @@ public class Object3D
     }
 
     /// <summary>
-    /// Internal quaternion representation used for matrix generation
+    /// Local rotation expressed as a quaternion (mirrors Three.js quaternion property)
+    /// When set, updates the Euler rotation. When Rotation is set, updates this.
+    /// </summary>
+    public Quaternion Quaternion
+    {
+        get => _rotation;
+        set
+        {
+            _rotation = value;
+            // Convert quaternion back to Euler angles for Rotation property consistency
+            _rotationEuler = QuaternionToEuler(value);
+            _matrixNeedsUpdate = true;
+        }
+    }
+
+    /// <summary>
+    /// Internal quaternion representation used for matrix generation (same as Quaternion property)
     /// </summary>
     internal Quaternion RotationQuaternion => _rotation;
 

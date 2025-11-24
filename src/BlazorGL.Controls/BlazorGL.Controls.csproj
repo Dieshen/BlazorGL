@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BlazorGL.Core\BlazorGL.Core.csproj" />
+    <ProjectReference Include="..\BlazorGL.Extensions\BlazorGL.Extensions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

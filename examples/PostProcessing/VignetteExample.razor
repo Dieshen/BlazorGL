@@ -1,0 +1,356 @@
+@page "/examples/vignette"
+@using BlazorGL.Core
+@using BlazorGL.Core.Cameras
+@using BlazorGL.Core.Geometries
+@using BlazorGL.Core.Lights
+@using BlazorGL.Core.Materials
+@using BlazorGL.Core.Rendering
+@using BlazorGL.Extensions.PostProcessing
+@using System.Numerics
+
+<PageTitle>Vignette Effect - BlazorGL</PageTitle>
+
+<div class="example-container">
+    <div class="canvas-wrapper">
+        <canvas id="vignette-canvas" width="@_width" height="@_height"></canvas>
+    </div>
+
+    <div class="controls">
+        <h3>Vignette Effect</h3>
+
+        <div class="control-group">
+            <label>Preset:</label>
+            <select @onchange="OnPresetChanged">
+                <option value="custom">Custom</option>
+                <option value="Subtle">Subtle</option>
+                <option value="Medium" selected>Medium</option>
+                <option value="Strong">Strong</option>
+                <option value="Dramatic">Dramatic</option>
+                <option value="Cinematic">Cinematic</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Offset: @_offset.ToString("F2")</label>
+            <input type="range" min="0.1" max="2" step="0.1" value="@_offset"
+                   @oninput="OnOffsetChanged" />
+            <small>Size of clear center area</small>
+        </div>
+
+        <div class="control-group">
+            <label>Darkness: @_darkness.ToString("F2")</label>
+            <input type="range" min="0" max="1" step="0.01" value="@_darkness"
+                   @oninput="OnDarknessChanged" />
+            <small>Intensity of darkening</small>
+        </div>
+
+        <div class="control-group">
+            <label>Smoothness: @_smoothness.ToString("F2")</label>
+            <input type="range" min="0.1" max="1" step="0.05" value="@_smoothness"
+                   @oninput="OnSmoothnessChanged" />
+            <small>Falloff gradient smoothness</small>
+        </div>
+
+        <div class="control-group">
+            <label>
+                <input type="checkbox" checked="@_enabled" @onchange="OnEnabledChanged" />
+                Enable Vignette
+            </label>
+        </div>
+
+        <div class="info">
+            <h4>About Vignette</h4>
+            <p>
+                Vignette is a photographic effect where the image darkens or lightens
+                towards the edges, drawing focus to the center of the frame.
+            </p>
+
+            <h4>Common Uses</h4>
+            <ul>
+                <li><strong>Focus attention:</strong> Guide viewer's eye to center</li>
+                <li><strong>Cinematic look:</strong> Film and photography aesthetic</li>
+                <li><strong>Depth perception:</strong> Create sense of depth</li>
+                <li><strong>Mood:</strong> Add drama or intimacy</li>
+                <li><strong>Hide edges:</strong> Mask imperfections at borders</li>
+            </ul>
+
+            <h4>Parameters</h4>
+            <ul>
+                <li><strong>Offset:</strong> Controls size of unaffected area. Higher = smaller vignette</li>
+                <li><strong>Darkness:</strong> How dark the edges become. 0 = none, 1 = black</li>
+                <li><strong>Smoothness:</strong> Transition gradient. Higher = smoother fade</li>
+            </ul>
+
+            <h4>Preset Guide</h4>
+            <ul>
+                <li><strong>Subtle:</strong> Light touch, barely noticeable</li>
+                <li><strong>Medium:</strong> Standard cinematic look</li>
+                <li><strong>Strong:</strong> Clear darkening, artistic</li>
+                <li><strong>Dramatic:</strong> Heavy effect for impact</li>
+                <li><strong>Cinematic:</strong> Film-like appearance</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int _width = 1280;
+    private int _height = 720;
+
+    private Renderer? _renderer;
+    private Scene? _scene;
+    private PerspectiveCamera? _camera;
+    private EffectComposer? _composer;
+    private VignettePass? _vignettePass;
+
+    private float _offset = 1.0f;
+    private float _darkness = 0.6f;
+    private float _smoothness = 0.5f;
+    private bool _enabled = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeScene();
+            await Render();
+        }
+    }
+
+    private async Task InitializeScene()
+    {
+        // Create renderer
+        _renderer = new Renderer(_width, _height);
+        await _renderer.InitializeAsync("vignette-canvas");
+
+        // Create scene
+        _scene = new Scene();
+
+        // Create camera
+        _camera = new PerspectiveCamera(75, (float)_width / _height, 0.1f, 100f);
+        _camera.Position = new Vector3(0, 3, 8);
+        _camera.LookAt(Vector3.Zero);
+
+        // Add lights
+        var ambientLight = new AmbientLight(0xffffff, 0.5f);
+        _scene.Add(ambientLight);
+
+        var pointLight = new PointLight(0xffffff, 1.5f, 20f);
+        pointLight.Position = new Vector3(0, 5, 0);
+        _scene.Add(pointLight);
+
+        var directionalLight = new DirectionalLight(0xffffff, 0.5f);
+        directionalLight.Position = new Vector3(5, 10, 5);
+        _scene.Add(directionalLight);
+
+        // Create portrait-style scene
+        CreatePortraitScene();
+
+        // Setup post-processing
+        _composer = new EffectComposer(_renderer);
+        _composer.AddPass(new RenderPass(_scene, _camera));
+
+        // Add vignette pass
+        _vignettePass = new VignettePass(_width, _height);
+        _vignettePass.SetPreset(VignettePreset.Medium);
+        _composer.AddPass(_vignettePass);
+
+        // Get initial values from preset
+        _offset = _vignettePass.Offset;
+        _darkness = _vignettePass.Darkness;
+        _smoothness = _vignettePass.Smoothness;
+    }
+
+    private void CreatePortraitScene()
+    {
+        if (_scene == null) return;
+
+        // Create a central subject (sphere head with features)
+        var headGeometry = new SphereGeometry(1.2f, 32, 32);
+        var headMaterial = new MeshStandardMaterial
+        {
+            Color = 0xffdbac,
+            Roughness = 0.7f,
+            Metalness = 0.1f
+        };
+        var head = new Mesh(headGeometry, headMaterial);
+        head.Position = new Vector3(0, 1, 0);
+        _scene.Add(head);
+
+        // Create surrounding objects
+        for (int i = 0; i < 8; i++)
+        {
+            float angle = i * MathF.PI * 2 / 8;
+            var boxGeometry = new BoxGeometry(0.5f, 2.0f, 0.5f);
+            var boxMaterial = new MeshStandardMaterial
+            {
+                Color = (uint)(0x4488ff + i * 0x111100),
+                Roughness = 0.5f,
+                Metalness = 0.3f
+            };
+
+            var box = new Mesh(boxGeometry, boxMaterial);
+            box.Position = new Vector3(
+                MathF.Cos(angle) * 4,
+                0,
+                MathF.Sin(angle) * 4
+            );
+            _scene.Add(box);
+        }
+
+        // Add ground
+        var planeGeometry = new PlaneGeometry(20, 20);
+        var planeMaterial = new MeshStandardMaterial
+        {
+            Color = 0x333333,
+            Roughness = 0.9f
+        };
+        var plane = new Mesh(planeGeometry, planeMaterial);
+        plane.Rotation = new Vector3(-MathF.PI / 2, 0, 0);
+        plane.Position = new Vector3(0, -1, 0);
+        _scene.Add(plane);
+    }
+
+    private async Task Render()
+    {
+        if (_composer == null || _scene == null) return;
+
+        float rotation = 0;
+
+        while (true)
+        {
+            // Slowly rotate camera around scene
+            rotation += 0.005f;
+            _camera!.Position = new Vector3(
+                MathF.Cos(rotation) * 8,
+                3,
+                MathF.Sin(rotation) * 8
+            );
+            _camera.LookAt(new Vector3(0, 1, 0));
+
+            _composer.Render();
+            await Task.Delay(16); // ~60 FPS
+        }
+    }
+
+    private void OnPresetChanged(ChangeEventArgs e)
+    {
+        var presetName = e.Value?.ToString();
+        if (presetName == "custom" || _vignettePass == null) return;
+
+        if (Enum.TryParse<VignettePreset>(presetName, out var preset))
+        {
+            _vignettePass.SetPreset(preset);
+
+            // Update UI values
+            _offset = _vignettePass.Offset;
+            _darkness = _vignettePass.Darkness;
+            _smoothness = _vignettePass.Smoothness;
+
+            StateHasChanged();
+        }
+    }
+
+    private void OnOffsetChanged(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var value) && _vignettePass != null)
+        {
+            _offset = value;
+            _vignettePass.Offset = value;
+        }
+    }
+
+    private void OnDarknessChanged(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var value) && _vignettePass != null)
+        {
+            _darkness = value;
+            _vignettePass.Darkness = value;
+        }
+    }
+
+    private void OnSmoothnessChanged(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var value) && _vignettePass != null)
+        {
+            _smoothness = value;
+            _vignettePass.Smoothness = value;
+        }
+    }
+
+    private void OnEnabledChanged(ChangeEventArgs e)
+    {
+        if (e.Value is bool value && _vignettePass != null)
+        {
+            _enabled = value;
+            _vignettePass.Enabled = value;
+        }
+    }
+}
+
+<style>
+    .example-container {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    .canvas-wrapper {
+        flex: 1;
+    }
+
+    canvas {
+        width: 100%;
+        height: auto;
+        border: 1px solid #ccc;
+    }
+
+    .controls {
+        width: 380px;
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 8px;
+    }
+
+    .control-group {
+        margin-bottom: 20px;
+    }
+
+    .control-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+    }
+
+    .control-group small {
+        display: block;
+        margin-top: 4px;
+        color: #666;
+        font-size: 0.85em;
+    }
+
+    .control-group select,
+    .control-group input[type="range"] {
+        width: 100%;
+    }
+
+    .info {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid #ddd;
+    }
+
+    .info h4 {
+        margin-top: 20px;
+        margin-bottom: 10px;
+    }
+
+    .info ul {
+        margin-top: 8px;
+        padding-left: 20px;
+    }
+
+    .info li {
+        margin-bottom: 8px;
+    }
+</style>

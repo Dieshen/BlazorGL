@@ -1,0 +1,361 @@
+@page "/examples/antialiasing"
+@using BlazorGL.Core
+@using BlazorGL.Core.Cameras
+@using BlazorGL.Core.Geometries
+@using BlazorGL.Core.Lights
+@using BlazorGL.Core.Materials
+@using BlazorGL.Core.Rendering
+@using BlazorGL.Extensions.PostProcessing
+@using System.Numerics
+
+<PageTitle>Anti-Aliasing Comparison - BlazorGL</PageTitle>
+
+<div class="example-container">
+    <div class="canvases">
+        <div class="canvas-section">
+            <h4>No AA</h4>
+            <canvas id="no-aa-canvas" width="@_width" height="@_height"></canvas>
+        </div>
+
+        <div class="canvas-section">
+            <h4>FXAA</h4>
+            <canvas id="fxaa-canvas" width="@_width" height="@_height"></canvas>
+        </div>
+
+        <div class="canvas-section">
+            <h4>SMAA</h4>
+            <canvas id="smaa-canvas" width="@_width" height="@_height"></canvas>
+        </div>
+
+        <div class="canvas-section">
+            <h4>TAA</h4>
+            <canvas id="taa-canvas" width="@_width" height="@_height"></canvas>
+        </div>
+    </div>
+
+    <div class="controls">
+        <h3>Anti-Aliasing Comparison</h3>
+
+        <div class="control-group">
+            <label>SMAA Quality:</label>
+            <select @onchange="OnSMAAQualityChanged">
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High" selected>High</option>
+                <option value="Ultra">Ultra</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>TAA Samples: @_taaSamples</label>
+            <input type="range" min="4" max="16" step="4" value="@_taaSamples"
+                   @oninput="OnTAASamplesChanged" />
+        </div>
+
+        <div class="control-group">
+            <label>
+                <input type="checkbox" checked="@_rotate" @onchange="OnRotateChanged" />
+                Auto Rotate
+            </label>
+        </div>
+
+        <div class="info">
+            <h4>Comparison Guide</h4>
+            <ul>
+                <li><strong>No AA:</strong> Raw rendering, visible jagged edges</li>
+                <li><strong>FXAA:</strong> Fast, single-pass, slight blur</li>
+                <li><strong>SMAA:</strong> Better quality, 3-pass, minimal blur</li>
+                <li><strong>TAA:</strong> Best quality, temporal accumulation, requires stable frame</li>
+            </ul>
+
+            <h4>Performance</h4>
+            <table>
+                <tr>
+                    <th>Method</th>
+                    <th>Speed</th>
+                    <th>Quality</th>
+                </tr>
+                <tr>
+                    <td>No AA</td>
+                    <td>Fastest</td>
+                    <td>Poor</td>
+                </tr>
+                <tr>
+                    <td>FXAA</td>
+                    <td>Very Fast</td>
+                    <td>Good</td>
+                </tr>
+                <tr>
+                    <td>SMAA</td>
+                    <td>Fast</td>
+                    <td>Excellent</td>
+                </tr>
+                <tr>
+                    <td>TAA</td>
+                    <td>Medium</td>
+                    <td>Best</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int _width = 640;
+    private int _height = 480;
+
+    private Renderer? _noAARenderer;
+    private Renderer? _fxaaRenderer;
+    private Renderer? _smaaRenderer;
+    private Renderer? _taaRenderer;
+
+    private Scene? _scene;
+    private PerspectiveCamera? _camera;
+
+    private EffectComposer? _noAAComposer;
+    private EffectComposer? _fxaaComposer;
+    private EffectComposer? _smaaComposer;
+    private EffectComposer? _taaComposer;
+
+    private SMAAPass? _smaaPass;
+    private TAARenderPass? _taaPass;
+
+    private int _taaSamples = 8;
+    private bool _rotate = true;
+    private float _rotation = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeScene();
+            await Render();
+        }
+    }
+
+    private async Task InitializeScene()
+    {
+        // Create scene and camera (shared)
+        _scene = new Scene();
+        _camera = new PerspectiveCamera(75, (float)_width / _height, 0.1f, 100f);
+        _camera.Position = new Vector3(0, 2, 5);
+        _camera.LookAt(Vector3.Zero);
+
+        // Add lights
+        var ambientLight = new AmbientLight(0xffffff, 0.4f);
+        _scene.Add(ambientLight);
+
+        var directionalLight = new DirectionalLight(0xffffff, 0.8f);
+        directionalLight.Position = new Vector3(5, 5, 5);
+        _scene.Add(directionalLight);
+
+        // Create test geometry with lots of edges
+        CreateTestGeometry();
+
+        // Initialize renderers
+        _noAARenderer = new Renderer(_width, _height);
+        await _noAARenderer.InitializeAsync("no-aa-canvas");
+
+        _fxaaRenderer = new Renderer(_width, _height);
+        await _fxaaRenderer.InitializeAsync("fxaa-canvas");
+
+        _smaaRenderer = new Renderer(_width, _height);
+        await _smaaRenderer.InitializeAsync("smaa-canvas");
+
+        _taaRenderer = new Renderer(_width, _height);
+        await _taaRenderer.InitializeAsync("taa-canvas");
+
+        // Setup composers
+        SetupComposers();
+    }
+
+    private void CreateTestGeometry()
+    {
+        if (_scene == null) return;
+
+        // Create wireframe torus knot (lots of edges to test AA)
+        var geometry = new TorusKnotGeometry(1, 0.3f, 100, 16);
+        var material = new MeshStandardMaterial
+        {
+            Color = 0x00ff88,
+            Wireframe = true,
+            Metalness = 0.5f,
+            Roughness = 0.5f
+        };
+
+        var mesh = new Mesh(geometry, material);
+        _scene.Add(mesh);
+
+        // Add some text/complex shapes
+        var boxGeometry = new BoxGeometry(0.5f, 0.5f, 0.5f);
+        for (int i = 0; i < 5; i++)
+        {
+            var box = new Mesh(boxGeometry, new MeshStandardMaterial
+            {
+                Color = 0xff0000,
+                Wireframe = true
+            });
+            box.Position = new Vector3(
+                MathF.Cos(i * MathF.PI * 2 / 5) * 2,
+                0,
+                MathF.Sin(i * MathF.PI * 2 / 5) * 2
+            );
+            _scene.Add(box);
+        }
+    }
+
+    private void SetupComposers()
+    {
+        if (_scene == null || _camera == null) return;
+
+        // No AA
+        _noAAComposer = new EffectComposer(_noAARenderer!);
+        _noAAComposer.AddPass(new RenderPass(_scene, _camera));
+
+        // FXAA
+        _fxaaComposer = new EffectComposer(_fxaaRenderer!);
+        _fxaaComposer.AddPass(new RenderPass(_scene, _camera));
+        _fxaaComposer.AddPass(new FXAAPass(_width, _height));
+
+        // SMAA
+        _smaaComposer = new EffectComposer(_smaaRenderer!);
+        _smaaComposer.AddPass(new RenderPass(_scene, _camera));
+        _smaaPass = new SMAAPass(_width, _height);
+        _smaaPass.SetQuality(SMAAQuality.High);
+        _smaaComposer.AddPass(_smaaPass);
+
+        // TAA
+        _taaComposer = new EffectComposer(_taaRenderer!);
+        _taaComposer.AddPass(new RenderPass(_scene, _camera));
+        _taaPass = new TAARenderPass(_scene, _camera, _width, _height);
+        _taaPass.SampleCount = _taaSamples;
+        _taaComposer.AddPass(_taaPass);
+    }
+
+    private async Task Render()
+    {
+        while (true)
+        {
+            // Update rotation
+            if (_rotate && _scene != null)
+            {
+                _rotation += 0.01f;
+                foreach (var child in _scene.Children)
+                {
+                    if (child is Mesh)
+                    {
+                        child.Rotation = new Vector3(0, _rotation, 0);
+                    }
+                }
+            }
+
+            // Render all views
+            _noAAComposer?.Render();
+            _fxaaComposer?.Render();
+            _smaaComposer?.Render();
+            _taaComposer?.Render();
+
+            await Task.Delay(16); // ~60 FPS
+        }
+    }
+
+    private void OnSMAAQualityChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<SMAAQuality>(e.Value?.ToString(), out var quality))
+        {
+            _smaaPass?.SetQuality(quality);
+        }
+    }
+
+    private void OnTAASamplesChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var value))
+        {
+            _taaSamples = value;
+            _taaPass?.SetSampleCount(value);
+        }
+    }
+
+    private void OnRotateChanged(ChangeEventArgs e)
+    {
+        if (e.Value is bool value)
+        {
+            _rotate = value;
+        }
+    }
+}
+
+<style>
+    .example-container {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    .canvases {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .canvas-section {
+        text-align: center;
+    }
+
+    .canvas-section h4 {
+        margin-bottom: 10px;
+    }
+
+    canvas {
+        width: 100%;
+        height: auto;
+        border: 1px solid #ccc;
+    }
+
+    .controls {
+        width: 300px;
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 8px;
+    }
+
+    .control-group {
+        margin-bottom: 20px;
+    }
+
+    .control-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+    }
+
+    .control-group select,
+    .control-group input[type="range"] {
+        width: 100%;
+    }
+
+    .info {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid #ddd;
+    }
+
+    .info table {
+        width: 100%;
+        margin-top: 10px;
+        border-collapse: collapse;
+    }
+
+    .info th,
+    .info td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .info th {
+        background: #e0e0e0;
+        font-weight: bold;
+    }
+</style>

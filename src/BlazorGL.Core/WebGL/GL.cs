@@ -70,6 +70,12 @@ public sealed class GL : IAsyncDisposable, IDisposable
     public void BindTexture(TextureTarget target, uint tex) => _module.InvokeVoid("bindTexture", _ctxId, target.ToString(), tex);
     public void TexImage2D(TextureTarget target, int level, InternalFormat internalFormat, uint width, uint height, PixelFormat format, PixelType type, byte[]? data) =>
         _module.InvokeVoid("texImage2D", _ctxId, target.ToString(), level, internalFormat.ToString(), width, height, format.ToString(), type.ToString(), data);
+    public void TexImage2DFloat(TextureTarget target, int level, string internalFormat, uint width, uint height, string format, string type, float[] data) =>
+        _module.InvokeVoid("texImage2DFloat", _ctxId, target.ToString(), level, internalFormat, width, height, format, type, data);
+    public void TexImage2DInt(TextureTarget target, int level, string internalFormat, uint width, uint height, string format, string type, int[] data) =>
+        _module.InvokeVoid("texImage2DInt", _ctxId, target.ToString(), level, internalFormat, width, height, format, type, data);
+    public void CompressedTexImage2D(TextureTarget target, int level, string internalFormat, uint width, uint height, byte[] data) =>
+        _module.InvokeVoid("compressedTexImage2D", _ctxId, target.ToString(), level, internalFormat, width, height, data);
     public void TexParameterI(TextureTarget target, TextureParameterName pname, string value) =>
         _module.InvokeVoid("texParameter", _ctxId, target.ToString(), pname.ToString(), value);
     public void GenerateMipmap(TextureTarget target) => _module.InvokeVoid("generateMipmap", _ctxId, target.ToString());

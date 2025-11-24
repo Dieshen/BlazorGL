@@ -1,0 +1,496 @@
+@page "/shadows/comparison"
+@using BlazorGL.Core
+@using BlazorGL.Core.Cameras
+@using BlazorGL.Core.Geometries
+@using BlazorGL.Core.Lights
+@using BlazorGL.Core.Materials
+@using BlazorGL.Core.Rendering
+@using System.Numerics
+
+<PageTitle>Shadow Technique Comparison - BlazorGL</PageTitle>
+
+<h1>Shadow Technique Comparison</h1>
+
+<div class="controls">
+    <div class="control-group">
+        <label>Shadow Type:</label>
+        <select @bind="selectedShadowType">
+            <option value="Basic">Basic (Hard Shadows)</option>
+            <option value="PCF">PCF (9 samples)</option>
+            <option value="PCF16">PCF (16 samples)</option>
+            <option value="PCF25">PCF (25 samples)</option>
+            <option value="PCFSoft">PCF Soft (PCSS)</option>
+            <option value="VSM">VSM (Variance)</option>
+        </select>
+        <button @onclick="ApplyShadowType">Apply</button>
+    </div>
+
+    <div class="control-group">
+        <label>Shadow Resolution:</label>
+        <select @bind="shadowResolution">
+            <option value="512">512x512</option>
+            <option value="1024">1024x1024</option>
+            <option value="2048">2048x2048</option>
+            <option value="4096">4096x4096</option>
+        </select>
+        <button @onclick="ApplyResolution">Apply</button>
+    </div>
+
+    <div class="control-group">
+        <label>Shadow Radius: @shadowRadius.ToString("F1")</label>
+        <input type="range" min="0.5" max="5.0" step="0.1" @bind="shadowRadius" @oninput="UpdateShadowRadius" />
+    </div>
+
+    <div class="control-group">
+        <label>Shadow Bias: @shadowBias.ToString("F4")</label>
+        <input type="range" min="0" max="0.01" step="0.0001" @bind="shadowBias" @oninput="UpdateShadowBias" />
+    </div>
+
+    @if (selectedShadowType == "PCFSoft")
+    {
+        <div class="control-group">
+            <label>Light Size: @lightSize.ToString("F1")</label>
+            <input type="range" min="0.5" max="10.0" step="0.5" @bind="lightSize" @oninput="UpdateLightSize" />
+        </div>
+    }
+
+    @if (selectedShadowType == "VSM")
+    {
+        <div class="control-group">
+            <label>Light Bleeding Reduction: @lightBleedingReduction.ToString("F2")</label>
+            <input type="range" min="0" max="0.5" step="0.05" @bind="lightBleedingReduction" @oninput="UpdateLightBleeding" />
+        </div>
+
+        <div class="control-group">
+            <label>Blur Size: @blurSize</label>
+            <input type="range" min="1" max="9" step="2" @bind="blurSize" @oninput="UpdateBlurSize" />
+        </div>
+    }
+
+    <div class="control-group">
+        <label>Use CSM (Cascaded Shadow Maps):</label>
+        <input type="checkbox" @bind="useCSM" @onchange="ToggleCSM" />
+    </div>
+
+    @if (useCSM)
+    {
+        <div class="control-group">
+            <label>Cascade Count: @cascadeCount</label>
+            <input type="range" min="2" max="4" step="1" @bind="cascadeCount" @oninput="UpdateCascadeCount" />
+        </div>
+
+        <div class="control-group">
+            <label>CSM Lambda: @csmLambda.ToString("F2")</label>
+            <input type="range" min="0" max="1" step="0.1" @bind="csmLambda" @oninput="UpdateCSMLambda" />
+        </div>
+    }
+</div>
+
+<div class="canvas-container">
+    <canvas @ref="canvasRef" width="1920" height="1080"></canvas>
+</div>
+
+<div class="info-panel">
+    <h3>Shadow Technique Information</h3>
+    <div class="info-content">
+        @switch (selectedShadowType)
+        {
+            case "Basic":
+                <p><strong>Basic Shadows</strong></p>
+                <p>Hard shadows with no filtering. Single depth comparison per fragment.</p>
+                <ul>
+                    <li>Fastest performance</li>
+                    <li>Sharp, aliased edges</li>
+                    <li>Good for stylized visuals</li>
+                </ul>
+                break;
+
+            case "PCF":
+            case "PCF16":
+            case "PCF25":
+                <p><strong>PCF (Percentage Closer Filtering)</strong></p>
+                <p>Samples shadow map multiple times using Poisson disk distribution.</p>
+                <ul>
+                    <li>Smooth shadow edges</li>
+                    <li>Configurable quality (9-64 samples)</li>
+                    <li>Good quality-performance balance</li>
+                    <li>Cost scales linearly with sample count</li>
+                </ul>
+                break;
+
+            case "PCFSoft":
+                <p><strong>PCSS (Percentage Closer Soft Shadows)</strong></p>
+                <p>Variable penumbra based on distance from shadow caster.</p>
+                <ul>
+                    <li>Physically accurate soft shadows</li>
+                    <li>Contact-hardened shadows</li>
+                    <li>More expensive than PCF</li>
+                    <li>Best quality for realistic rendering</li>
+                </ul>
+                break;
+
+            case "VSM":
+                <p><strong>VSM (Variance Shadow Maps)</strong></p>
+                <p>Statistical filtering using depth moments.</p>
+                <ul>
+                    <li>Very soft shadows</li>
+                    <li>Can be blurred without sampling cost</li>
+                    <li>May show light bleeding artifacts</li>
+                    <li>Good for ambient shadows</li>
+                </ul>
+                break;
+        }
+
+        @if (useCSM)
+        {
+            <p><strong>CSM Enabled</strong></p>
+            <p>Cascaded Shadow Maps eliminate perspective aliasing for large scenes.</p>
+            <ul>
+                <li>Multiple shadow maps at different distances</li>
+                <li>Maximizes effective resolution</li>
+                <li>Essential for large outdoor scenes</li>
+            </ul>
+        }
+    </div>
+</div>
+
+<div class="stats-panel">
+    <h3>Performance Stats</h3>
+    <p>FPS: @fps.ToString("F1")</p>
+    <p>Frame Time: @frameTime.ToString("F2")ms</p>
+    <p>Draw Calls: @drawCalls</p>
+    <p>Triangles: @triangles</p>
+</div>
+
+@code {
+    private ElementReference canvasRef;
+    private Renderer? renderer;
+    private Scene? scene;
+    private PerspectiveCamera? camera;
+    private DirectionalLight? mainLight;
+
+    // Shadow parameters
+    private string selectedShadowType = "PCF";
+    private int shadowResolution = 2048;
+    private float shadowRadius = 2.0f;
+    private float shadowBias = 0.002f;
+    private float lightSize = 5.0f;
+    private float lightBleedingReduction = 0.2f;
+    private int blurSize = 5;
+
+    // CSM parameters
+    private bool useCSM = false;
+    private int cascadeCount = 3;
+    private float csmLambda = 0.5f;
+
+    // Stats
+    private float fps = 0;
+    private float frameTime = 0;
+    private int drawCalls = 0;
+    private int triangles = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeScene();
+            StateHasChanged();
+        }
+    }
+
+    private async Task InitializeScene()
+    {
+        try
+        {
+            // Initialize renderer
+            renderer = new Renderer();
+            await renderer.InitializeAsync(canvasRef, JSRuntime);
+            renderer.SetClearColor(new BlazorGL.Core.Math.Color(0.1f, 0.1f, 0.15f));
+
+            // Create scene
+            scene = new Scene();
+
+            // Create camera
+            camera = new PerspectiveCamera(45, 1920f / 1080f, 0.1f, 1000f)
+            {
+                Position = new Vector3(15, 10, 15)
+            };
+            camera.LookAt(Vector3.Zero);
+
+            // Create main directional light with shadows
+            mainLight = new DirectionalLight(new BlazorGL.Core.Math.Color(1, 1, 1), 1.5f)
+            {
+                Direction = new Vector3(-1, -3, -2),
+                CastShadow = true
+            };
+            ConfigureShadows();
+            scene.Add(mainLight);
+
+            // Add ambient light
+            var ambientLight = new AmbientLight(new BlazorGL.Core.Math.Color(0.3f, 0.3f, 0.4f), 0.5f);
+            scene.Add(ambientLight);
+
+            // Create ground plane
+            var groundGeometry = new PlaneGeometry(50, 50);
+            var groundMaterial = new StandardMaterial
+            {
+                Color = new BlazorGL.Core.Math.Color(0.5f, 0.5f, 0.5f),
+                Roughness = 0.8f,
+                Metalness = 0.1f
+            };
+            var ground = new Mesh(groundGeometry, groundMaterial)
+            {
+                Rotation = new Vector3(-MathF.PI / 2, 0, 0),
+                ReceiveShadow = true
+            };
+            scene.Add(ground);
+
+            // Create shadow casting objects
+            CreateSceneObjects();
+
+            // Start render loop
+            await RenderLoop();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing scene: {ex.Message}");
+        }
+    }
+
+    private void CreateSceneObjects()
+    {
+        if (scene == null) return;
+
+        // Create various objects to demonstrate shadows
+        var materials = new[]
+        {
+            new StandardMaterial { Color = new BlazorGL.Core.Math.Color(0.8f, 0.2f, 0.2f), Roughness = 0.5f, Metalness = 0.3f },
+            new StandardMaterial { Color = new BlazorGL.Core.Math.Color(0.2f, 0.8f, 0.2f), Roughness = 0.4f, Metalness = 0.5f },
+            new StandardMaterial { Color = new BlazorGL.Core.Math.Color(0.2f, 0.2f, 0.8f), Roughness = 0.3f, Metalness = 0.7f },
+            new StandardMaterial { Color = new BlazorGL.Core.Math.Color(0.8f, 0.8f, 0.2f), Roughness = 0.6f, Metalness = 0.2f }
+        };
+
+        // Spheres at different heights
+        for (int i = 0; i < 4; i++)
+        {
+            var sphere = new Mesh(
+                new SphereGeometry(1.5f, 32, 16),
+                materials[i]
+            )
+            {
+                Position = new Vector3(-6 + i * 4, 2 + i * 0.5f, 0),
+                CastShadow = true,
+                ReceiveShadow = true
+            };
+            scene.Add(sphere);
+        }
+
+        // Boxes
+        for (int i = 0; i < 3; i++)
+        {
+            var box = new Mesh(
+                new BoxGeometry(2, 3, 2),
+                materials[(i + 1) % materials.Length]
+            )
+            {
+                Position = new Vector3(-4 + i * 4, 1.5f, 5),
+                Rotation = new Vector3(0, i * 0.3f, 0),
+                CastShadow = true,
+                ReceiveShadow = true
+            };
+            scene.Add(box);
+        }
+
+        // Torus knot (complex geometry)
+        var torusKnot = new Mesh(
+            new TorusKnotGeometry(1.5f, 0.5f, 128, 16),
+            materials[2]
+        )
+        {
+            Position = new Vector3(0, 4, -5),
+            CastShadow = true,
+            ReceiveShadow = true
+        };
+        scene.Add(torusKnot);
+    }
+
+    private void ConfigureShadows()
+    {
+        if (mainLight == null) return;
+
+        mainLight.Shadow.Width = shadowResolution;
+        mainLight.Shadow.Height = shadowResolution;
+        mainLight.Shadow.Radius = shadowRadius;
+        mainLight.Shadow.Bias = shadowBias;
+        mainLight.Shadow.Near = 0.5f;
+        mainLight.Shadow.Far = 100f;
+
+        // Apply shadow type
+        switch (selectedShadowType)
+        {
+            case "Basic":
+                mainLight.Shadow.Type = ShadowMapType.Basic;
+                break;
+            case "PCF":
+                mainLight.Shadow.Type = ShadowMapType.PCF;
+                mainLight.Shadow.PCFSamples = 9;
+                break;
+            case "PCF16":
+                mainLight.Shadow.Type = ShadowMapType.PCF;
+                mainLight.Shadow.PCFSamples = 16;
+                break;
+            case "PCF25":
+                mainLight.Shadow.Type = ShadowMapType.PCF;
+                mainLight.Shadow.PCFSamples = 25;
+                break;
+            case "PCFSoft":
+                mainLight.Shadow.Type = ShadowMapType.PCFSoft;
+                mainLight.Shadow.PCFSamples = 25;
+                mainLight.Shadow.LightSize = lightSize;
+                mainLight.Shadow.ShadowSoftness = 2.0f;
+                break;
+            case "VSM":
+                mainLight.Shadow.Type = ShadowMapType.VSM;
+                mainLight.Shadow.MinVariance = 0.00001f;
+                mainLight.Shadow.LightBleedingReduction = lightBleedingReduction;
+                mainLight.Shadow.BlurSize = blurSize;
+                break;
+        }
+
+        // Apply CSM if enabled
+        if (useCSM && camera != null)
+        {
+            mainLight.EnableCSM(camera, cascadeCount, 50f);
+            if (mainLight.CSM != null)
+            {
+                mainLight.CSM.Lambda = csmLambda;
+                mainLight.CSM.CascadeResolution = shadowResolution;
+                mainLight.CSM.EnableCascadeBlending = true;
+            }
+        }
+        else
+        {
+            mainLight.DisableCSM();
+        }
+    }
+
+    private async Task RenderLoop()
+    {
+        while (true)
+        {
+            if (renderer != null && scene != null && camera != null)
+            {
+                var startTime = DateTime.UtcNow;
+
+                // Animate some objects
+                foreach (var obj in scene.Children)
+                {
+                    if (obj is Mesh mesh && mesh.Geometry is TorusKnotGeometry)
+                    {
+                        mesh.Rotation = new Vector3(
+                            mesh.Rotation.X + 0.01f,
+                            mesh.Rotation.Y + 0.02f,
+                            mesh.Rotation.Z
+                        );
+                    }
+                }
+
+                // Render
+                renderer.Render(scene, camera);
+
+                // Update stats
+                var endTime = DateTime.UtcNow;
+                frameTime = (float)(endTime - startTime).TotalMilliseconds;
+                fps = 1000f / frameTime;
+                drawCalls = renderer.Stats.DrawCalls;
+                triangles = renderer.Stats.Triangles;
+            }
+
+            await Task.Delay(16); // ~60 FPS
+            StateHasChanged();
+        }
+    }
+
+    // UI event handlers
+    private void ApplyShadowType()
+    {
+        ConfigureShadows();
+    }
+
+    private void ApplyResolution()
+    {
+        if (mainLight != null)
+        {
+            mainLight.Shadow.Width = shadowResolution;
+            mainLight.Shadow.Height = shadowResolution;
+        }
+    }
+
+    private void UpdateShadowRadius(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var value) && mainLight != null)
+        {
+            shadowRadius = value;
+            mainLight.Shadow.Radius = value;
+        }
+    }
+
+    private void UpdateShadowBias(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var value) && mainLight != null)
+        {
+            shadowBias = value;
+            mainLight.Shadow.Bias = value;
+        }
+    }
+
+    private void UpdateLightSize(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var value) && mainLight != null)
+        {
+            lightSize = value;
+            mainLight.Shadow.LightSize = value;
+        }
+    }
+
+    private void UpdateLightBleeding(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var value) && mainLight != null)
+        {
+            lightBleedingReduction = value;
+            mainLight.Shadow.LightBleedingReduction = value;
+        }
+    }
+
+    private void UpdateBlurSize(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var value) && mainLight != null)
+        {
+            blurSize = value;
+            mainLight.Shadow.BlurSize = value;
+        }
+    }
+
+    private void ToggleCSM()
+    {
+        ConfigureShadows();
+    }
+
+    private void UpdateCascadeCount(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var value))
+        {
+            cascadeCount = value;
+            ConfigureShadows();
+        }
+    }
+
+    private void UpdateCSMLambda(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var value) && mainLight?.CSM != null)
+        {
+            csmLambda = value;
+            mainLight.CSM.Lambda = value;
+        }
+    }
+}

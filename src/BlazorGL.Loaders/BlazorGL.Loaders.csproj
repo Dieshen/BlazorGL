@@ -20,6 +20,11 @@
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="8.0.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.0" />
+    <PackageReference Include="Microsoft.JSInterop" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="wwwroot\**\*.js" Pack="true" PackagePath="staticwebassets\" />
   </ItemGroup>
 
 </Project>

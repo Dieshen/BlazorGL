@@ -291,8 +291,18 @@ public class RenderContext : IDisposable
         uint textureId = _gl.CreateTexture();
         _gl.BindTexture(TextureTarget.Texture2D, textureId);
 
-        if (texture.ImageData != null)
+        // Handle different texture types
+        if (texture is CompressedTexture compressedTexture)
         {
+            UploadCompressedTexture(compressedTexture);
+        }
+        else if (texture is DataTexture dataTexture)
+        {
+            UploadDataTexture(dataTexture);
+        }
+        else if (texture.ImageData != null)
+        {
+            // Regular image texture
             _gl.TexImage2D(
                 TextureTarget.Texture2D,
                 0,
@@ -319,6 +329,143 @@ public class RenderContext : IDisposable
         _gl.BindTexture(TextureTarget.Texture2D, 0);
 
         return textureId;
+    }
+
+    /// <summary>
+    /// Upload compressed texture data
+    /// </summary>
+    private void UploadCompressedTexture(CompressedTexture texture)
+    {
+        // Map compression format to WebGL constant name
+        string formatName = GetWebGLCompressedFormat(texture.CompressionFormat);
+
+        // Upload each mipmap level
+        foreach (var mip in texture.Mipmaps)
+        {
+            _gl.CompressedTexImage2D(
+                TextureTarget.Texture2D,
+                mip.Level,
+                formatName,
+                (uint)mip.Width,
+                (uint)mip.Height,
+                mip.Data
+            );
+        }
+    }
+
+    /// <summary>
+    /// Upload data texture (float, int, etc.)
+    /// </summary>
+    private void UploadDataTexture(DataTexture texture)
+    {
+        string pixelFormat = MapTextureFormat(texture.TextureFormat);
+        string pixelType = MapDataType(texture.DataType);
+
+        if (texture.FloatData != null)
+        {
+            _gl.TexImage2DFloat(
+                TextureTarget.Texture2D,
+                0,
+                pixelFormat,
+                (uint)texture.Width,
+                (uint)texture.Height,
+                pixelFormat,
+                pixelType,
+                texture.FloatData
+            );
+        }
+        else if (texture.IntData != null)
+        {
+            _gl.TexImage2DInt(
+                TextureTarget.Texture2D,
+                0,
+                pixelFormat,
+                (uint)texture.Width,
+                (uint)texture.Height,
+                pixelFormat,
+                pixelType,
+                texture.IntData
+            );
+        }
+        else if (texture.ImageData != null)
+        {
+            _gl.TexImage2D(
+                TextureTarget.Texture2D,
+                0,
+                texture.Format,
+                (uint)texture.Width,
+                (uint)texture.Height,
+                PixelFormat.Rgba,
+                PixelType.UnsignedByte,
+                texture.ImageData
+            );
+        }
+    }
+
+    /// <summary>
+    /// Map compression format to WebGL extension constant name
+    /// </summary>
+    private string GetWebGLCompressedFormat(CompressedTextureFormat format)
+    {
+        return format switch
+        {
+            CompressedTextureFormat.BC1 => "COMPRESSED_RGB_S3TC_DXT1_EXT",
+            CompressedTextureFormat.BC2 => "COMPRESSED_RGBA_S3TC_DXT3_EXT",
+            CompressedTextureFormat.BC3 => "COMPRESSED_RGBA_S3TC_DXT5_EXT",
+            CompressedTextureFormat.BC4 => "COMPRESSED_RED_RGTC1_EXT",
+            CompressedTextureFormat.BC5 => "COMPRESSED_RED_GREEN_RGTC2_EXT",
+            CompressedTextureFormat.BC6H => "COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB",
+            CompressedTextureFormat.BC7 => "COMPRESSED_RGBA_BPTC_UNORM_ARB",
+            CompressedTextureFormat.ETC1 => "COMPRESSED_RGB_ETC1_WEBGL",
+            CompressedTextureFormat.ETC2_RGB => "COMPRESSED_RGB8_ETC2",
+            CompressedTextureFormat.ETC2_RGBA => "COMPRESSED_RGBA8_ETC2_EAC",
+            CompressedTextureFormat.ASTC_4x4 => "COMPRESSED_RGBA_ASTC_4x4_KHR",
+            CompressedTextureFormat.ASTC_6x6 => "COMPRESSED_RGBA_ASTC_6x6_KHR",
+            CompressedTextureFormat.ASTC_8x8 => "COMPRESSED_RGBA_ASTC_8x8_KHR",
+            CompressedTextureFormat.PVRTC_RGBA_4BPP => "COMPRESSED_RGBA_PVRTC_4BPPV1_IMG",
+            CompressedTextureFormat.PVRTC_RGBA_2BPP => "COMPRESSED_RGBA_PVRTC_2BPPV1_IMG",
+            CompressedTextureFormat.RGB565 => "RGB565",
+            _ => throw new NotSupportedException($"Compression format {format} not supported")
+        };
+    }
+
+    /// <summary>
+    /// Map texture format to WebGL constant
+    /// </summary>
+    private string MapTextureFormat(TextureFormat format)
+    {
+        return format switch
+        {
+            TextureFormat.Alpha => "ALPHA",
+            TextureFormat.Red => "RED",
+            TextureFormat.RG => "RG",
+            TextureFormat.RGB => "RGB",
+            TextureFormat.RGBA => "RGBA",
+            TextureFormat.Luminance => "LUMINANCE",
+            TextureFormat.LuminanceAlpha => "LUMINANCE_ALPHA",
+            TextureFormat.Depth => "DEPTH_COMPONENT",
+            TextureFormat.DepthStencil => "DEPTH_STENCIL",
+            _ => "RGBA"
+        };
+    }
+
+    /// <summary>
+    /// Map data type to WebGL constant
+    /// </summary>
+    private string MapDataType(TextureDataType dataType)
+    {
+        return dataType switch
+        {
+            TextureDataType.UnsignedByte => "UNSIGNED_BYTE",
+            TextureDataType.Byte => "BYTE",
+            TextureDataType.UnsignedShort => "UNSIGNED_SHORT",
+            TextureDataType.Short => "SHORT",
+            TextureDataType.UnsignedInt => "UNSIGNED_INT",
+            TextureDataType.Int => "INT",
+            TextureDataType.HalfFloat => "HALF_FLOAT",
+            TextureDataType.Float => "FLOAT",
+            _ => "UNSIGNED_BYTE"
+        };
     }
 
     /// <summary>

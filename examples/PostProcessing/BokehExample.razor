@@ -1,0 +1,281 @@
+@page "/examples/bokeh"
+@using BlazorGL.Core
+@using BlazorGL.Core.Cameras
+@using BlazorGL.Core.Geometries
+@using BlazorGL.Core.Lights
+@using BlazorGL.Core.Materials
+@using BlazorGL.Core.Rendering
+@using BlazorGL.Extensions.PostProcessing
+@using System.Numerics
+
+<PageTitle>Bokeh Depth of Field - BlazorGL</PageTitle>
+
+<div class="example-container">
+    <div class="canvas-wrapper">
+        <canvas id="bokeh-canvas" width="@_width" height="@_height"></canvas>
+    </div>
+
+    <div class="controls">
+        <h3>Bokeh Depth of Field</h3>
+
+        <div class="control-group">
+            <label>Focus Distance: @_focus.ToString("F2")</label>
+            <input type="range" min="0.1" max="10" step="0.1" value="@_focus"
+                   @oninput="OnFocusChanged" />
+        </div>
+
+        <div class="control-group">
+            <label>Aperture: @_aperture.ToString("F3")</label>
+            <input type="range" min="0.001" max="0.1" step="0.001" value="@_aperture"
+                   @oninput="OnApertureChanged" />
+        </div>
+
+        <div class="control-group">
+            <label>Max Blur: @_maxBlur.ToString("F2")</label>
+            <input type="range" min="0.1" max="3" step="0.1" value="@_maxBlur"
+                   @oninput="OnMaxBlurChanged" />
+        </div>
+
+        <div class="control-group">
+            <label>Samples: @_samples</label>
+            <input type="range" min="16" max="128" step="16" value="@_samples"
+                   @oninput="OnSamplesChanged" />
+        </div>
+
+        <div class="control-group">
+            <label>
+                <input type="checkbox" checked="@_showFocus" @onchange="OnShowFocusChanged" />
+                Show Focus Plane
+            </label>
+        </div>
+
+        <div class="info">
+            <p><strong>Bokeh Depth of Field</strong> simulates camera lens focus effects.</p>
+            <ul>
+                <li><strong>Focus Distance:</strong> Distance from camera where scene is sharp</li>
+                <li><strong>Aperture:</strong> Controls amount of blur (lower f-stop = more blur)</li>
+                <li><strong>Max Blur:</strong> Maximum blur radius</li>
+                <li><strong>Samples:</strong> Quality vs performance (more = better quality)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int _width = 1280;
+    private int _height = 720;
+
+    private Renderer? _renderer;
+    private Scene? _scene;
+    private PerspectiveCamera? _camera;
+    private EffectComposer? _composer;
+    private BokehPass? _bokehPass;
+
+    private float _focus = 5.0f;
+    private float _aperture = 0.025f;
+    private float _maxBlur = 1.0f;
+    private int _samples = 64;
+    private bool _showFocus = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeScene();
+            await Render();
+        }
+    }
+
+    private async Task InitializeScene()
+    {
+        // Create renderer
+        _renderer = new Renderer(_width, _height);
+        await _renderer.InitializeAsync("bokeh-canvas");
+
+        // Create scene
+        _scene = new Scene();
+
+        // Create camera
+        _camera = new PerspectiveCamera(75, (float)_width / _height, 0.1f, 100f);
+        _camera.Position = new Vector3(0, 2, 10);
+        _camera.LookAt(Vector3.Zero);
+
+        // Add lights
+        var ambientLight = new AmbientLight(0xffffff, 0.5f);
+        _scene.Add(ambientLight);
+
+        var directionalLight = new DirectionalLight(0xffffff, 0.8f);
+        directionalLight.Position = new Vector3(5, 10, 5);
+        _scene.Add(directionalLight);
+
+        // Create depth test scene - multiple objects at different distances
+        CreateDepthScene();
+
+        // Setup post-processing
+        _composer = new EffectComposer(_renderer);
+
+        // Add render pass
+        _composer.AddPass(new RenderPass(_scene, _camera));
+
+        // Add bokeh pass
+        _bokehPass = new BokehPass(_scene, _camera, _width, _height)
+        {
+            Focus = _focus,
+            Aperture = _aperture,
+            MaxBlur = _maxBlur,
+            Samples = _samples,
+            ShowFocus = _showFocus
+        };
+        _composer.AddPass(_bokehPass);
+    }
+
+    private void CreateDepthScene()
+    {
+        if (_scene == null) return;
+
+        // Create multiple spheres at different depths
+        var colors = new uint[] { 0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff };
+
+        for (int i = 0; i < 5; i++)
+        {
+            var geometry = new SphereGeometry(0.5f, 32, 32);
+            var material = new MeshStandardMaterial
+            {
+                Color = colors[i],
+                Metalness = 0.3f,
+                Roughness = 0.4f
+            };
+
+            var sphere = new Mesh(geometry, material);
+            sphere.Position = new Vector3(
+                (i - 2) * 2,
+                MathF.Sin(i * 0.5f) * 2,
+                -i * 2
+            );
+            _scene.Add(sphere);
+        }
+
+        // Add ground plane
+        var planeGeometry = new PlaneGeometry(20, 20);
+        var planeMaterial = new MeshStandardMaterial
+        {
+            Color = 0x808080,
+            Roughness = 0.8f
+        };
+        var plane = new Mesh(planeGeometry, planeMaterial);
+        plane.Rotation = new Vector3(-MathF.PI / 2, 0, 0);
+        plane.Position = new Vector3(0, -2, 0);
+        _scene.Add(plane);
+    }
+
+    private async Task Render()
+    {
+        if (_composer == null) return;
+
+        // Animation loop
+        while (true)
+        {
+            _composer.Render();
+            await Task.Delay(16); // ~60 FPS
+        }
+    }
+
+    private void OnFocusChanged(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var value) && _bokehPass != null)
+        {
+            _focus = value;
+            _bokehPass.Focus = value;
+        }
+    }
+
+    private void OnApertureChanged(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var value) && _bokehPass != null)
+        {
+            _aperture = value;
+            _bokehPass.Aperture = value;
+        }
+    }
+
+    private void OnMaxBlurChanged(ChangeEventArgs e)
+    {
+        if (float.TryParse(e.Value?.ToString(), out var value) && _bokehPass != null)
+        {
+            _maxBlur = value;
+            _bokehPass.MaxBlur = value;
+        }
+    }
+
+    private void OnSamplesChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var value) && _bokehPass != null)
+        {
+            _samples = value;
+            _bokehPass.Samples = value;
+        }
+    }
+
+    private void OnShowFocusChanged(ChangeEventArgs e)
+    {
+        if (e.Value is bool value && _bokehPass != null)
+        {
+            _showFocus = value;
+            _bokehPass.ShowFocus = value;
+        }
+    }
+}
+
+<style>
+    .example-container {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    .canvas-wrapper {
+        flex: 1;
+    }
+
+    canvas {
+        width: 100%;
+        height: auto;
+        border: 1px solid #ccc;
+    }
+
+    .controls {
+        width: 300px;
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 8px;
+    }
+
+    .control-group {
+        margin-bottom: 20px;
+    }
+
+    .control-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+    }
+
+    .control-group input[type="range"] {
+        width: 100%;
+    }
+
+    .info {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid #ddd;
+    }
+
+    .info ul {
+        margin-top: 10px;
+        padding-left: 20px;
+    }
+
+    .info li {
+        margin-bottom: 8px;
+    }
+</style>
