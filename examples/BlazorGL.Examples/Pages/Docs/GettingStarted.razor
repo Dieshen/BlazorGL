@@ -1,0 +1,171 @@
+@page "/docs/getting-started"
+
+<PageTitle>Getting Started - BlazorGL</PageTitle>
+
+<div class="docs-content">
+    <h1>Getting Started with BlazorGL</h1>
+
+    <p class="lead">
+        BlazorGL is a comprehensive 3D rendering library for Blazor WebAssembly that brings
+        Three.js-style capabilities to the .NET ecosystem. This guide will help you set up
+        your first 3D scene.
+    </p>
+
+    <h2>Prerequisites</h2>
+    <ul>
+        <li>.NET 8.0 SDK or later</li>
+        <li>A Blazor WebAssembly project</li>
+        <li>A modern browser with WebGL support</li>
+    </ul>
+
+    <h2>Installation</h2>
+    <p>Install BlazorGL via NuGet:</p>
+    <CodeSnippet Language="bash" Code="dotnet add package BlazorGL" />
+
+    <p>Or add it to your <code>.csproj</code> file:</p>
+    <CodeSnippet Language="xml" Code="@xmlReference" />
+
+    <h2>Basic Setup</h2>
+
+    <h3>1. Add the namespace imports</h3>
+    <p>In your <code>_Imports.razor</code> file, add:</p>
+    <CodeSnippet Language="csharp" Code="@importsCode" />
+
+    <h3>2. Create your first scene</h3>
+    <p>Create a new Razor component with a canvas element:</p>
+    <CodeSnippet Language="razor" Code="@basicSceneCode" />
+
+    <h2>Core Concepts</h2>
+
+    <h3>Scene Graph</h3>
+    <p>
+        BlazorGL uses a hierarchical scene graph where all 3D objects inherit from <code>Object3D</code>.
+        Objects can be added as children of other objects, and transformations (position, rotation, scale)
+        are inherited from parent to child.
+    </p>
+
+    <h3>Renderer</h3>
+    <p>
+        The <code>Renderer</code> class manages the WebGL context and handles all drawing operations.
+        It must be initialized with a canvas element and the JSRuntime before use.
+    </p>
+
+    <h3>Camera</h3>
+    <p>
+        Cameras define how the scene is viewed. <code>PerspectiveCamera</code> provides realistic
+        perspective projection, while <code>OrthographicCamera</code> provides parallel projection.
+    </p>
+
+    <h3>Mesh = Geometry + Material</h3>
+    <p>
+        A <code>Mesh</code> combines a <code>Geometry</code> (the shape) with a <code>Material</code>
+        (the appearance). BlazorGL provides 21 built-in geometry types and 19 material types.
+    </p>
+
+    <h2>Next Steps</h2>
+    <div class="card-grid" style="margin-top: 24px;">
+        <a href="/examples/basics/hello-world" class="card">
+            <h4>Hello World Example</h4>
+            <p>See a complete working example with a rotating cube.</p>
+        </a>
+        <a href="/examples/geometry/gallery" class="card">
+            <h4>Geometry Gallery</h4>
+            <p>Explore all available geometry types.</p>
+        </a>
+        <a href="/examples/materials/showcase" class="card">
+            <h4>Materials Showcase</h4>
+            <p>Learn about different material types and their properties.</p>
+        </a>
+        <a href="/docs/architecture" class="card">
+            <h4>Architecture Overview</h4>
+            <p>Understand how BlazorGL is structured.</p>
+        </a>
+    </div>
+</div>
+
+@code {
+    private string xmlReference = @"<PackageReference Include=""BlazorGL"" Version=""1.0.0"" />";
+
+    private string importsCode = @"@using BlazorGL.Core
+@using BlazorGL.Core.Cameras
+@using BlazorGL.Core.Geometries
+@using BlazorGL.Core.Lights
+@using BlazorGL.Core.Materials
+@using BlazorGL.Core.Rendering";
+
+    private string basicSceneCode = @"@page ""/my-scene""
+@inject IJSRuntime JSRuntime
+
+<canvas @ref=""canvasRef"" width=""1280"" height=""720""></canvas>
+
+@code {
+    private ElementReference canvasRef;
+    private Renderer? renderer;
+    private Scene? scene;
+    private PerspectiveCamera? camera;
+    private Mesh? cube;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // Initialize the renderer with the canvas
+        renderer = new Renderer();
+        await renderer.InitializeAsync(canvasRef, JSRuntime);
+        renderer.SetSize(1280, 720);
+        renderer.SetClearColor(new Color(0.1f, 0.1f, 0.15f));
+
+        // Create the scene
+        scene = new Scene();
+
+        // Create a perspective camera
+        // Parameters: FOV, aspect ratio, near plane, far plane
+        camera = new PerspectiveCamera(75, 1280f / 720f, 0.1f, 1000f);
+        camera.Position = new Vector3(0, 0, 5);
+
+        // Create a cube mesh
+        var geometry = new BoxGeometry(1, 1, 1);
+        var material = new StandardMaterial
+        {
+            Color = new Color(0.4f, 0.7f, 1.0f),
+            Roughness = 0.5f,
+            Metalness = 0.3f
+        };
+        cube = new Mesh(geometry, material);
+        scene.Add(cube);
+
+        // Add lighting
+        var ambientLight = new AmbientLight(new Color(0.4f, 0.4f, 0.4f), 0.5f);
+        scene.Add(ambientLight);
+
+        var directionalLight = new DirectionalLight(new Color(1f, 1f, 1f), 1.0f);
+        directionalLight.Position = new Vector3(5, 5, 5);
+        scene.Add(directionalLight);
+
+        // Start the render loop
+        await RenderLoop();
+    }
+
+    private async Task RenderLoop()
+    {
+        while (true)
+        {
+            if (cube != null)
+            {
+                // Rotate the cube
+                cube.Rotation = new Vector3(
+                    cube.Rotation.X + 0.01f,
+                    cube.Rotation.Y + 0.02f,
+                    cube.Rotation.Z
+                );
+            }
+
+            // Render the scene
+            renderer?.Render(scene!, camera!);
+
+            // Wait for next frame (~60 FPS)
+            await Task.Delay(16);
+        }
+    }
+}";
+}

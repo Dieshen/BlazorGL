@@ -1,0 +1,202 @@
+@using Microsoft.AspNetCore.Components.Routing
+
+<nav class="nav-menu">
+    <div class="nav-section">
+        <div class="nav-section-title">Documentation</div>
+        <NavLink href="/docs/getting-started" Match="NavLinkMatch.Prefix">
+            <span class="nav-icon">📚</span> Getting Started
+        </NavLink>
+        <NavLink href="/docs/architecture" Match="NavLinkMatch.Prefix">
+            <span class="nav-icon">🏗️</span> Architecture
+        </NavLink>
+        <NavLink href="/docs/api" Match="NavLinkMatch.Prefix">
+            <span class="nav-icon">📖</span> API Reference
+        </NavLink>
+    </div>
+
+    <div class="nav-section">
+        <div class="nav-section-title">Examples</div>
+
+        <div class="nav-group">
+            <div class="nav-group-header" @onclick="() => ToggleGroup(0)">
+                <span class="nav-icon">🎯</span> Basics
+                <span class="nav-chevron @(IsGroupExpanded(0) ? "expanded" : "")">▶</span>
+            </div>
+            @if (IsGroupExpanded(0))
+            {
+                <div class="nav-group-items">
+                    <NavLink href="/examples/basics/hello-world">Hello World</NavLink>
+                    <NavLink href="/examples/basics/scene-graph">Scene Graph</NavLink>
+                    <NavLink href="/examples/basics/animation-loop">Animation Loop</NavLink>
+                </div>
+            }
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-header" @onclick="() => ToggleGroup(1)">
+                <span class="nav-icon">📐</span> Geometry
+                <span class="nav-chevron @(IsGroupExpanded(1) ? "expanded" : "")">▶</span>
+            </div>
+            @if (IsGroupExpanded(1))
+            {
+                <div class="nav-group-items">
+                    <NavLink href="/examples/geometry/gallery">Gallery</NavLink>
+                    <NavLink href="/examples/geometry/buffer">BufferGeometry</NavLink>
+                    <NavLink href="/examples/geometry/wireframe">Wireframe</NavLink>
+                </div>
+            }
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-header" @onclick="() => ToggleGroup(2)">
+                <span class="nav-icon">🎨</span> Materials
+                <span class="nav-chevron @(IsGroupExpanded(2) ? "expanded" : "")">▶</span>
+            </div>
+            @if (IsGroupExpanded(2))
+            {
+                <div class="nav-group-items">
+                    <NavLink href="/examples/materials/showcase">Showcase</NavLink>
+                    <NavLink href="/examples/materials/standard">Standard PBR</NavLink>
+                    <NavLink href="/examples/materials/physical">Physical</NavLink>
+                    <NavLink href="/examples/materials/toon">Toon Shading</NavLink>
+                    <NavLink href="/examples/materials/custom">Custom Shaders</NavLink>
+                </div>
+            }
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-header" @onclick="() => ToggleGroup(3)">
+                <span class="nav-icon">💡</span> Lights & Shadows
+                <span class="nav-chevron @(IsGroupExpanded(3) ? "expanded" : "")">▶</span>
+            </div>
+            @if (IsGroupExpanded(3))
+            {
+                <div class="nav-group-items">
+                    <NavLink href="/examples/lights/types">Light Types</NavLink>
+                    <NavLink href="/examples/lights/shadows">Shadow Basics</NavLink>
+                    <NavLink href="/shadows/comparison">Shadow Comparison</NavLink>
+                </div>
+            }
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-header" @onclick="() => ToggleGroup(4)">
+                <span class="nav-icon">📷</span> Cameras
+                <span class="nav-chevron @(IsGroupExpanded(4) ? "expanded" : "")">▶</span>
+            </div>
+            @if (IsGroupExpanded(4))
+            {
+                <div class="nav-group-items">
+                    <NavLink href="/examples/cameras/perspective">Perspective</NavLink>
+                    <NavLink href="/examples/cameras/orthographic">Orthographic</NavLink>
+                    <NavLink href="/examples/cameras/array">Array Camera</NavLink>
+                </div>
+            }
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-header" @onclick="() => ToggleGroup(5)">
+                <span class="nav-icon">🎮</span> Controls
+                <span class="nav-chevron @(IsGroupExpanded(5) ? "expanded" : "")">▶</span>
+            </div>
+            @if (IsGroupExpanded(5))
+            {
+                <div class="nav-group-items">
+                    <NavLink href="/examples/controls/orbit">Orbit Controls</NavLink>
+                    <NavLink href="/examples/controls/trackball">Trackball Controls</NavLink>
+                    <NavLink href="/examples/controls/drag">Drag Controls</NavLink>
+                    <NavLink href="/examples/controls/transform">Transform Controls</NavLink>
+                </div>
+            }
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-header" @onclick="() => ToggleGroup(6)">
+                <span class="nav-icon">📦</span> Loaders
+                <span class="nav-chevron @(IsGroupExpanded(6) ? "expanded" : "")">▶</span>
+            </div>
+            @if (IsGroupExpanded(6))
+            {
+                <div class="nav-group-items">
+                    <NavLink href="/examples/loaders/gltf">GLTF Models</NavLink>
+                    <NavLink href="/examples/loaders/obj">OBJ Models</NavLink>
+                    <NavLink href="/examples/loaders/textures">Textures</NavLink>
+                </div>
+            }
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-header" @onclick="() => ToggleGroup(7)">
+                <span class="nav-icon">🎬</span> Animation
+                <span class="nav-chevron @(IsGroupExpanded(7) ? "expanded" : "")">▶</span>
+            </div>
+            @if (IsGroupExpanded(7))
+            {
+                <div class="nav-group-items">
+                    <NavLink href="/examples/animation/keyframe">Keyframe</NavLink>
+                    <NavLink href="/examples/animation/skeletal">Skeletal</NavLink>
+                    <NavLink href="/examples/animation/blending">Blending</NavLink>
+                </div>
+            }
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-header" @onclick="() => ToggleGroup(8)">
+                <span class="nav-icon">✨</span> Effects
+                <span class="nav-chevron @(IsGroupExpanded(8) ? "expanded" : "")">▶</span>
+            </div>
+            @if (IsGroupExpanded(8))
+            {
+                <div class="nav-group-items">
+                    <NavLink href="/postprocessing">Post-Processing</NavLink>
+                    <NavLink href="/examples/effects/bloom">Bloom</NavLink>
+                    <NavLink href="/examples/effects/dof">Depth of Field</NavLink>
+                    <NavLink href="/examples/effects/outline">Outline</NavLink>
+                </div>
+            }
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-header" @onclick="() => ToggleGroup(9)">
+                <span class="nav-icon">🚀</span> Advanced
+                <span class="nav-chevron @(IsGroupExpanded(9) ? "expanded" : "")">▶</span>
+            </div>
+            @if (IsGroupExpanded(9))
+            {
+                <div class="nav-group-items">
+                    <NavLink href="/examples/advanced/instancing">Instancing</NavLink>
+                    <NavLink href="/examples/advanced/lod">Level of Detail</NavLink>
+                    <NavLink href="/examples/advanced/raycasting">Raycasting</NavLink>
+                    <NavLink href="/examples/advanced/particles">Particles</NavLink>
+                </div>
+            }
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-header" @onclick="() => ToggleGroup(10)">
+                <span class="nav-icon">🔧</span> Helpers
+                <span class="nav-chevron @(IsGroupExpanded(10) ? "expanded" : "")">▶</span>
+            </div>
+            @if (IsGroupExpanded(10))
+            {
+                <div class="nav-group-items">
+                    <NavLink href="/examples/helpers/gallery">Helper Gallery</NavLink>
+                </div>
+            }
+        </div>
+    </div>
+</nav>
+
+@code {
+    private HashSet<int> expandedGroups = new HashSet<int> { 0 }; // Basics expanded by default
+
+    private bool IsGroupExpanded(int groupIndex) => expandedGroups.Contains(groupIndex);
+
+    private void ToggleGroup(int groupIndex)
+    {
+        if (expandedGroups.Contains(groupIndex))
+            expandedGroups.Remove(groupIndex);
+        else
+            expandedGroups.Add(groupIndex);
+    }
+}

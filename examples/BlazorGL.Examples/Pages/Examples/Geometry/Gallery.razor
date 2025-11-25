@@ -1,0 +1,427 @@
+@page "/examples/geometry/gallery"
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Geometry Gallery - BlazorGL Examples</PageTitle>
+
+<div class="example-header">
+    <h1>Geometry Gallery</h1>
+    <p class="example-description">
+        Interactive showcase of all 21 geometry types available in BlazorGL.
+        Select a geometry type to see it rendered with adjustable parameters.
+    </p>
+</div>
+
+<div class="example-content">
+    <div class="example-main">
+        <div class="canvas-container">
+            <canvas @ref="canvasRef" width="1280" height="720"></canvas>
+            <StatsOverlay Fps="@fps" FrameTime="@frameTime" DrawCalls="@drawCalls" Triangles="@triangles" />
+        </div>
+
+        <div class="geometry-selector">
+            @foreach (var geo in geometryTypes)
+            {
+                <button class="geo-btn @(selectedGeometry == geo.Key ? "active" : "")"
+                        @onclick="() => SelectGeometry(geo.Key)">
+                    @geo.Value
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="example-sidebar">
+        <ParameterPanel Title="@($"{geometryTypes[selectedGeometry]} Parameters")">
+            @switch (selectedGeometry)
+            {
+                case "box":
+                    <div class="param-row">
+                        <label class="param-label"><span>Width</span><span class="param-value">@boxWidth.ToString("F1")</span></label>
+                        <input type="range" min="0.5" max="4" step="0.1" @bind="boxWidth" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Height</span><span class="param-value">@boxHeight.ToString("F1")</span></label>
+                        <input type="range" min="0.5" max="4" step="0.1" @bind="boxHeight" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Depth</span><span class="param-value">@boxDepth.ToString("F1")</span></label>
+                        <input type="range" min="0.5" max="4" step="0.1" @bind="boxDepth" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    break;
+
+                case "sphere":
+                    <div class="param-row">
+                        <label class="param-label"><span>Radius</span><span class="param-value">@sphereRadius.ToString("F1")</span></label>
+                        <input type="range" min="0.5" max="3" step="0.1" @bind="sphereRadius" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Width Segments</span><span class="param-value">@sphereWidthSegs</span></label>
+                        <input type="range" min="8" max="64" step="4" @bind="sphereWidthSegs" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Height Segments</span><span class="param-value">@sphereHeightSegs</span></label>
+                        <input type="range" min="4" max="32" step="2" @bind="sphereHeightSegs" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    break;
+
+                case "cylinder":
+                    <div class="param-row">
+                        <label class="param-label"><span>Radius Top</span><span class="param-value">@cylinderRadiusTop.ToString("F1")</span></label>
+                        <input type="range" min="0" max="2" step="0.1" @bind="cylinderRadiusTop" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Radius Bottom</span><span class="param-value">@cylinderRadiusBottom.ToString("F1")</span></label>
+                        <input type="range" min="0.1" max="2" step="0.1" @bind="cylinderRadiusBottom" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Height</span><span class="param-value">@cylinderHeight.ToString("F1")</span></label>
+                        <input type="range" min="0.5" max="4" step="0.1" @bind="cylinderHeight" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Radial Segments</span><span class="param-value">@cylinderRadialSegs</span></label>
+                        <input type="range" min="6" max="64" step="2" @bind="cylinderRadialSegs" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    break;
+
+                case "torus":
+                    <div class="param-row">
+                        <label class="param-label"><span>Radius</span><span class="param-value">@torusRadius.ToString("F1")</span></label>
+                        <input type="range" min="0.5" max="2" step="0.1" @bind="torusRadius" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Tube Radius</span><span class="param-value">@torusTube.ToString("F2")</span></label>
+                        <input type="range" min="0.1" max="0.8" step="0.05" @bind="torusTube" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Radial Segments</span><span class="param-value">@torusRadialSegs</span></label>
+                        <input type="range" min="8" max="64" step="4" @bind="torusRadialSegs" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Tubular Segments</span><span class="param-value">@torusTubularSegs</span></label>
+                        <input type="range" min="8" max="128" step="4" @bind="torusTubularSegs" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    break;
+
+                case "torusknot":
+                    <div class="param-row">
+                        <label class="param-label"><span>Radius</span><span class="param-value">@torusKnotRadius.ToString("F1")</span></label>
+                        <input type="range" min="0.5" max="2" step="0.1" @bind="torusKnotRadius" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Tube</span><span class="param-value">@torusKnotTube.ToString("F2")</span></label>
+                        <input type="range" min="0.1" max="0.5" step="0.05" @bind="torusKnotTube" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>P (Windings)</span><span class="param-value">@torusKnotP</span></label>
+                        <input type="range" min="1" max="10" step="1" @bind="torusKnotP" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    <div class="param-row">
+                        <label class="param-label"><span>Q (Windings)</span><span class="param-value">@torusKnotQ</span></label>
+                        <input type="range" min="1" max="10" step="1" @bind="torusKnotQ" @bind:event="oninput" @onchange="UpdateGeometry" />
+                    </div>
+                    break;
+
+                default:
+                    <p class="text-muted">Select a geometry to see its parameters.</p>
+                    break;
+            }
+        </ParameterPanel>
+
+        <ParameterPanel Title="Display">
+            <div class="param-row">
+                <label class="param-label"><span>Wireframe</span></label>
+                <input type="checkbox" @bind="wireframe" />
+            </div>
+            <div class="param-row">
+                <label class="param-label"><span>Auto Rotate</span></label>
+                <input type="checkbox" @bind="autoRotate" />
+            </div>
+            <div class="param-row">
+                <label class="param-label">
+                    <span>Rotation Speed</span>
+                    <span class="param-value">@rotationSpeed.ToString("F2")</span>
+                </label>
+                <input type="range" min="0" max="0.05" step="0.005" @bind="rotationSpeed" @bind:event="oninput" />
+            </div>
+        </ParameterPanel>
+
+        <ParameterPanel Title="Geometry Info" Collapsed="true">
+            <div class="info-row">
+                <span>Vertices:</span>
+                <strong>@vertexCount</strong>
+            </div>
+            <div class="info-row">
+                <span>Triangles:</span>
+                <strong>@triangles</strong>
+            </div>
+        </ParameterPanel>
+    </div>
+</div>
+
+<style>
+    .geometry-selector {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 16px;
+        background: white;
+        border-radius: 8px;
+        margin-top: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .geo-btn {
+        padding: 8px 16px;
+        border: 1px solid #e0e0e0;
+        background: white;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .geo-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .geo-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+</style>
+
+@code {
+    private ElementReference canvasRef;
+    private Renderer? renderer;
+    private Scene? scene;
+    private PerspectiveCamera? camera;
+    private Mesh? currentMesh;
+    private StandardMaterial? material;
+    private bool isRunning = false;
+
+    // Stats
+    private float fps = 0;
+    private float frameTime = 0;
+    private int drawCalls = 1;
+    private int triangles = 0;
+    private int vertexCount = 0;
+
+    // Display
+    private bool wireframe = false;
+    private bool autoRotate = true;
+    private float rotationSpeed = 0.01f;
+
+    private string selectedGeometry = "box";
+
+    private Dictionary<string, string> geometryTypes = new()
+    {
+        ["box"] = "Box",
+        ["sphere"] = "Sphere",
+        ["cylinder"] = "Cylinder",
+        ["cone"] = "Cone",
+        ["torus"] = "Torus",
+        ["torusknot"] = "Torus Knot",
+        ["plane"] = "Plane",
+        ["circle"] = "Circle",
+        ["ring"] = "Ring",
+        ["capsule"] = "Capsule",
+        ["dodecahedron"] = "Dodecahedron",
+        ["icosahedron"] = "Icosahedron",
+        ["octahedron"] = "Octahedron",
+        ["tetrahedron"] = "Tetrahedron"
+    };
+
+    // Box params
+    private float boxWidth = 1.5f, boxHeight = 1.5f, boxDepth = 1.5f;
+
+    // Sphere params
+    private float sphereRadius = 1f;
+    private int sphereWidthSegs = 32, sphereHeightSegs = 16;
+
+    // Cylinder params
+    private float cylinderRadiusTop = 0.5f, cylinderRadiusBottom = 0.5f, cylinderHeight = 2f;
+    private int cylinderRadialSegs = 32;
+
+    // Torus params
+    private float torusRadius = 1f, torusTube = 0.4f;
+    private int torusRadialSegs = 16, torusTubularSegs = 48;
+
+    // Torus Knot params
+    private float torusKnotRadius = 1f, torusKnotTube = 0.3f;
+    private int torusKnotP = 2, torusKnotQ = 3;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeScene();
+        }
+    }
+
+    private async Task InitializeScene()
+    {
+        try
+        {
+            renderer = new Renderer();
+            await renderer.InitializeAsync(canvasRef, JSRuntime);
+            renderer.SetSize(1280, 720);
+            renderer.SetClearColor(new BlazorGL.Core.Math.Color(0.1f, 0.1f, 0.15f));
+
+            scene = new Scene();
+
+            camera = new PerspectiveCamera(60, 1280f / 720f, 0.1f, 100f);
+            camera.Position = new Vector3(0, 2, 5);
+            camera.LookAt(Vector3.Zero);
+
+            material = new StandardMaterial
+            {
+                Color = new BlazorGL.Core.Math.Color(0.4f, 0.7f, 1.0f),
+                Roughness = 0.4f,
+                Metalness = 0.3f
+            };
+
+            // Add lights
+            scene.Add(new AmbientLight(new BlazorGL.Core.Math.Color(0.4f, 0.4f, 0.4f), 0.5f));
+
+            var directionalLight = new DirectionalLight(new BlazorGL.Core.Math.Color(1f, 1f, 1f), 1.0f);
+            directionalLight.Position = new Vector3(5, 10, 7);
+            scene.Add(directionalLight);
+
+            var fillLight = new DirectionalLight(new BlazorGL.Core.Math.Color(0.3f, 0.3f, 0.4f), 0.5f);
+            fillLight.Position = new Vector3(-5, 3, -5);
+            scene.Add(fillLight);
+
+            // Add grid helper
+            var grid = new GridHelper(10, 10);
+            scene.Add(grid);
+
+            // Create initial geometry
+            UpdateGeometry();
+
+            isRunning = true;
+            await RenderLoop();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
+    private void SelectGeometry(string key)
+    {
+        selectedGeometry = key;
+        UpdateGeometry();
+    }
+
+    private void UpdateGeometry()
+    {
+        if (scene == null || material == null) return;
+
+        // Remove existing mesh
+        if (currentMesh != null)
+        {
+            scene.Remove(currentMesh);
+            currentMesh.Geometry?.Dispose();
+        }
+
+        // Create new geometry
+        Geometry geometry = selectedGeometry switch
+        {
+            "box" => new BoxGeometry(boxWidth, boxHeight, boxDepth),
+            "sphere" => new SphereGeometry(sphereRadius, sphereWidthSegs, sphereHeightSegs),
+            "cylinder" => new CylinderGeometry(cylinderRadiusTop, cylinderRadiusBottom, cylinderHeight, cylinderRadialSegs),
+            "cone" => new ConeGeometry(0.75f, 2f, 32),
+            "torus" => new TorusGeometry(torusRadius, torusTube, torusRadialSegs, torusTubularSegs),
+            "torusknot" => new TorusKnotGeometry(torusKnotRadius, torusKnotTube, 64, 8, torusKnotP, torusKnotQ),
+            "plane" => new PlaneGeometry(2, 2),
+            "circle" => new CircleGeometry(1, 32),
+            "ring" => new RingGeometry(0.5f, 1f, 32),
+            "capsule" => new CapsuleGeometry(0.5f, 1f, 16, 32),
+            "dodecahedron" => new DodecahedronGeometry(1),
+            "icosahedron" => new IcosahedronGeometry(1),
+            "octahedron" => new OctahedronGeometry(1),
+            "tetrahedron" => new TetrahedronGeometry(1),
+            _ => new BoxGeometry(1, 1, 1)
+        };
+
+        currentMesh = new Mesh(geometry, material);
+        currentMesh.Position = new Vector3(0, 1, 0);
+        scene.Add(currentMesh);
+
+        // Update stats (approximate based on geometry type)
+        (triangles, vertexCount) = EstimateGeometryStats(selectedGeometry);
+    }
+
+    private async Task RenderLoop()
+    {
+        var lastTime = DateTime.UtcNow;
+
+        while (isRunning)
+        {
+            var currentTime = DateTime.UtcNow;
+            var deltaTime = (float)(currentTime - lastTime).TotalMilliseconds;
+            lastTime = currentTime;
+
+            fps = deltaTime > 0 ? 1000f / deltaTime : 0;
+            frameTime = deltaTime;
+
+            if (currentMesh != null && autoRotate)
+            {
+                currentMesh.Rotation = new Vector3(
+                    currentMesh.Rotation.X + rotationSpeed * 0.5f,
+                    currentMesh.Rotation.Y + rotationSpeed,
+                    currentMesh.Rotation.Z
+                );
+            }
+
+            if (material != null)
+            {
+                material.Wireframe = wireframe;
+            }
+
+            renderer?.Render(scene!, camera!);
+
+            StateHasChanged();
+            await Task.Delay(16);
+        }
+    }
+
+    public void Dispose()
+    {
+        isRunning = false;
+    }
+
+    private (int triangles, int vertices) EstimateGeometryStats(string geoType)
+    {
+        return geoType switch
+        {
+            "box" => (12, 24),
+            "sphere" => (sphereWidthSegs * sphereHeightSegs * 2, (sphereWidthSegs + 1) * (sphereHeightSegs + 1)),
+            "cylinder" => (cylinderRadialSegs * 4, cylinderRadialSegs * 4 + 2),
+            "cone" => (32 * 2, 33),
+            "torus" => (torusRadialSegs * torusTubularSegs * 2, torusRadialSegs * torusTubularSegs),
+            "torusknot" => (64 * 8 * 2, 64 * 8),
+            "plane" => (2, 4),
+            "circle" => (32, 33),
+            "ring" => (64, 66),
+            "capsule" => (32 * 16 * 2, 32 * 17),
+            "dodecahedron" => (36, 20),
+            "icosahedron" => (20, 12),
+            "octahedron" => (8, 6),
+            "tetrahedron" => (4, 4),
+            _ => (12, 8)
+        };
+    }
+}

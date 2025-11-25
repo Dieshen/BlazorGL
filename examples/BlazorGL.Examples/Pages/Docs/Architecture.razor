@@ -1,0 +1,359 @@
+@page "/docs/architecture"
+
+<PageTitle>Architecture - BlazorGL</PageTitle>
+
+<div class="docs-content">
+    <h1>Architecture Overview</h1>
+
+    <p class="lead">
+        BlazorGL is organized into logical namespaces that separate concerns and make it easy
+        to find the classes you need. This document provides an overview of the library structure.
+    </p>
+
+    <h2>Namespace Structure</h2>
+
+    <div class="architecture-diagram">
+        <div class="namespace-box core">
+            <h4>BlazorGL.Core</h4>
+            <p>Core rendering engine, scene graph, and base classes</p>
+            <div class="sub-namespaces">
+                <span>Cameras</span>
+                <span>Geometries</span>
+                <span>Lights</span>
+                <span>Materials</span>
+                <span>Rendering</span>
+                <span>Textures</span>
+                <span>Animation</span>
+                <span>Helpers</span>
+                <span>Shaders</span>
+                <span>Math</span>
+            </div>
+        </div>
+
+        <div class="namespace-box extensions">
+            <h4>BlazorGL.Extensions</h4>
+            <p>Advanced features and effects</p>
+            <div class="sub-namespaces">
+                <span>PostProcessing</span>
+                <span>Animation</span>
+                <span>Raycasting</span>
+                <span>Particles</span>
+                <span>Helpers</span>
+            </div>
+        </div>
+
+        <div class="namespace-box controls">
+            <h4>BlazorGL.Controls</h4>
+            <p>Camera and object interaction</p>
+            <div class="sub-namespaces">
+                <span>OrbitControls</span>
+                <span>TrackballControls</span>
+                <span>DragControls</span>
+                <span>TransformControls</span>
+            </div>
+        </div>
+
+        <div class="namespace-box loaders">
+            <h4>BlazorGL.Loaders</h4>
+            <p>Asset loading utilities</p>
+            <div class="sub-namespaces">
+                <span>GLTFLoader</span>
+                <span>OBJLoader</span>
+                <span>TextureLoader</span>
+                <span>DDSLoader</span>
+                <span>KTX2Loader</span>
+            </div>
+        </div>
+
+        <div class="namespace-box debug">
+            <h4>BlazorGL.Debug</h4>
+            <p>Performance monitoring</p>
+            <div class="sub-namespaces">
+                <span>Stats</span>
+            </div>
+        </div>
+    </div>
+
+    <h2>Core Components</h2>
+
+    <h3>Scene Graph</h3>
+    <p>
+        The scene graph is a hierarchical tree structure that organizes all objects in the 3D world.
+        Every object inherits from <code>Object3D</code>, which provides:
+    </p>
+    <ul>
+        <li><strong>Transform</strong> - Position, rotation, and scale</li>
+        <li><strong>Hierarchy</strong> - Parent/child relationships</li>
+        <li><strong>Visibility</strong> - Show/hide objects</li>
+        <li><strong>User data</strong> - Attach custom metadata</li>
+    </ul>
+
+    <CodeSnippet Language="csharp" Code="@sceneGraphCode" />
+
+    <h3>Rendering Pipeline</h3>
+    <p>The rendering pipeline processes the scene in several stages:</p>
+    <ol>
+        <li><strong>Scene Traversal</strong> - Walk the scene graph to collect visible objects</li>
+        <li><strong>Frustum Culling</strong> - Discard objects outside the camera view</li>
+        <li><strong>Sorting</strong> - Order objects for correct transparency rendering</li>
+        <li><strong>Shadow Pass</strong> - Render shadow maps for shadow-casting lights</li>
+        <li><strong>Main Pass</strong> - Render objects with lighting and materials</li>
+        <li><strong>Post-Processing</strong> - Apply screen-space effects</li>
+    </ol>
+
+    <h3>Material System</h3>
+    <p>Materials define how surfaces appear when rendered. BlazorGL provides several material types:</p>
+
+    <table class="docs-table">
+        <thead>
+            <tr>
+                <th>Material</th>
+                <th>Description</th>
+                <th>Use Case</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>StandardMaterial</code></td>
+                <td>PBR metallic-roughness workflow</td>
+                <td>Realistic rendering</td>
+            </tr>
+            <tr>
+                <td><code>PhysicalMaterial</code></td>
+                <td>Extended PBR with clearcoat, transmission</td>
+                <td>Glass, car paint, water</td>
+            </tr>
+            <tr>
+                <td><code>BasicMaterial</code></td>
+                <td>Unlit solid color</td>
+                <td>UI elements, wireframes</td>
+            </tr>
+            <tr>
+                <td><code>LambertMaterial</code></td>
+                <td>Diffuse-only lighting</td>
+                <td>Matte surfaces, performance</td>
+            </tr>
+            <tr>
+                <td><code>PhongMaterial</code></td>
+                <td>Diffuse + specular highlights</td>
+                <td>Shiny plastic, legacy style</td>
+            </tr>
+            <tr>
+                <td><code>ToonMaterial</code></td>
+                <td>Cel-shaded/cartoon style</td>
+                <td>Stylized rendering</td>
+            </tr>
+            <tr>
+                <td><code>ShaderMaterial</code></td>
+                <td>Custom GLSL shaders</td>
+                <td>Advanced effects</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Class Hierarchy</h2>
+
+    <h3>Object3D Inheritance</h3>
+    <CodeSnippet Language="text" Code="@hierarchyDiagram" />
+
+    <h3>Material Inheritance</h3>
+    <CodeSnippet Language="text" Code="@materialHierarchy" />
+
+    <h2>WebGL Integration</h2>
+    <p>
+        BlazorGL uses JavaScript interop to communicate with WebGL. The <code>Renderer</code> class
+        manages this communication through the <code>IJSRuntime</code> interface.
+    </p>
+
+    <div class="info-box">
+        <h4>Performance Tip</h4>
+        <p>
+            Minimize JS interop calls by batching operations. BlazorGL automatically batches
+            draw calls and state changes for optimal performance.
+        </p>
+    </div>
+
+    <h2>Memory Management</h2>
+    <p>
+        BlazorGL manages WebGL resources (textures, buffers, shaders) automatically. However,
+        you should dispose of large resources when no longer needed:
+    </p>
+
+    <CodeSnippet Language="csharp" Code="@disposeCode" />
+
+    <h2>Next Steps</h2>
+    <ul>
+        <li><a href="/docs/api">API Reference</a> - Detailed class documentation</li>
+        <li><a href="/examples/basics/hello-world">Hello World</a> - Your first scene</li>
+        <li><a href="/examples/materials/showcase">Materials</a> - Material deep dive</li>
+    </ul>
+</div>
+
+<style>
+    .architecture-diagram {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 16px;
+        margin: 24px 0;
+    }
+
+    .namespace-box {
+        padding: 20px;
+        border-radius: 8px;
+        border: 2px solid;
+    }
+
+    .namespace-box.core {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.05);
+    }
+
+    .namespace-box.extensions {
+        border-color: #a855f7;
+        background: rgba(168, 85, 247, 0.05);
+    }
+
+    .namespace-box.controls {
+        border-color: #22c55e;
+        background: rgba(34, 197, 94, 0.05);
+    }
+
+    .namespace-box.loaders {
+        border-color: #f59e0b;
+        background: rgba(245, 158, 11, 0.05);
+    }
+
+    .namespace-box.debug {
+        border-color: #ef4444;
+        background: rgba(239, 68, 68, 0.05);
+    }
+
+    .namespace-box h4 {
+        margin: 0 0 8px;
+        font-size: 16px;
+    }
+
+    .namespace-box p {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 12px;
+    }
+
+    .sub-namespaces {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .sub-namespaces span {
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+        font-size: 12px;
+        font-family: monospace;
+    }
+
+    .docs-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+    }
+
+    .docs-table th,
+    .docs-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .docs-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+    }
+
+    .info-box {
+        padding: 16px 20px;
+        background: #e8f4f8;
+        border-left: 4px solid #2196F3;
+        border-radius: 4px;
+        margin: 24px 0;
+    }
+
+    .info-box h4 {
+        margin: 0 0 8px;
+        color: #1976d2;
+    }
+
+    .info-box p {
+        margin: 0;
+        color: #555;
+    }
+</style>
+
+@code {
+    private string sceneGraphCode = @"// Scene graph hierarchy example
+var scene = new Scene();
+
+// Create a group to organize objects
+var carGroup = new Group();
+carGroup.Position = new Vector3(0, 0, 0);
+scene.Add(carGroup);
+
+// Add meshes to the group
+var body = new Mesh(bodyGeometry, bodyMaterial);
+var wheel1 = new Mesh(wheelGeometry, wheelMaterial);
+wheel1.Position = new Vector3(-1, -0.5f, 1);
+
+carGroup.Add(body);
+carGroup.Add(wheel1);
+
+// Moving the group moves all children
+carGroup.Position = new Vector3(10, 0, 0); // Entire car moves";
+
+    private string hierarchyDiagram = @"Object3D
+├── Scene
+├── Camera
+│   ├── PerspectiveCamera
+│   └── OrthographicCamera
+├── Light
+│   ├── AmbientLight
+│   ├── DirectionalLight
+│   ├── PointLight
+│   ├── SpotLight
+│   └── HemisphereLight
+├── Mesh
+├── Group
+├── Line
+├── Points
+├── Sprite
+└── Helper (AxesHelper, GridHelper, etc.)";
+
+    private string materialHierarchy = @"Material
+├── BasicMaterial
+├── LambertMaterial
+├── PhongMaterial
+├── StandardMaterial
+│   └── PhysicalMaterial
+├── ToonMaterial
+├── NormalMaterial
+├── DepthMaterial
+├── ShaderMaterial
+│   └── RawShaderMaterial
+├── LineMaterial
+├── PointsMaterial
+└── SpriteMaterial";
+
+    private string disposeCode = @"// Dispose of resources when done
+texture.Dispose();
+geometry.Dispose();
+material.Dispose();
+
+// Or dispose an entire scene
+scene.Traverse(obj => {
+    if (obj is Mesh mesh)
+    {
+        mesh.Geometry?.Dispose();
+        mesh.Material?.Dispose();
+    }
+});";
+}

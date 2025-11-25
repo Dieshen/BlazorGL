@@ -1,0 +1,365 @@
+@page "/docs/api"
+
+<PageTitle>API Reference - BlazorGL</PageTitle>
+
+<div class="docs-content api-reference">
+    <h1>API Reference</h1>
+
+    <p class="lead">
+        Complete reference documentation for all BlazorGL classes and APIs.
+        Click on a category to see the available types.
+    </p>
+
+    <div class="api-search">
+        <input type="text" placeholder="Search API..." @bind="searchQuery" @bind:event="oninput" />
+    </div>
+
+    @foreach (var category in GetFilteredCategories())
+    {
+        <div class="api-category">
+            <h2 id="@category.Id">@category.Name</h2>
+            <p class="category-description">@category.Description</p>
+
+            <div class="api-grid">
+                @foreach (var item in category.Items)
+                {
+                    <div class="api-item">
+                        <div class="api-item-header">
+                            <span class="api-type-badge @item.Type.ToLower()">@item.Type</span>
+                            <code class="api-name">@item.Name</code>
+                        </div>
+                        <p class="api-description">@item.Description</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .api-reference {
+        max-width: 1000px;
+    }
+
+    .api-search {
+        margin-bottom: 32px;
+    }
+
+    .api-search input {
+        width: 100%;
+        padding: 12px 16px;
+        font-size: 16px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        outline: none;
+        transition: border-color 0.2s ease;
+    }
+
+    .api-search input:focus {
+        border-color: #667eea;
+    }
+
+    .api-category {
+        margin-bottom: 48px;
+    }
+
+    .api-category h2 {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+    }
+
+    .category-description {
+        color: #666;
+        margin-bottom: 20px;
+    }
+
+    .api-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .api-item {
+        padding: 16px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+
+    .api-item-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .api-type-badge {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .api-type-badge.class {
+        background: #667eea;
+        color: white;
+    }
+
+    .api-type-badge.struct {
+        background: #22c55e;
+        color: white;
+    }
+
+    .api-type-badge.enum {
+        background: #f59e0b;
+        color: white;
+    }
+
+    .api-type-badge.interface {
+        background: #a855f7;
+        color: white;
+    }
+
+    .api-name {
+        font-size: 14px;
+        font-weight: 600;
+        background: none;
+        padding: 0;
+    }
+
+    .api-description {
+        font-size: 13px;
+        color: #666;
+        margin: 0;
+        line-height: 1.5;
+    }
+</style>
+
+@code {
+    private string searchQuery = "";
+
+    private List<ApiCategory> categories = new()
+    {
+        new ApiCategory
+        {
+            Id = "core",
+            Name = "Core",
+            Description = "Fundamental classes for scene management and rendering",
+            Items = new()
+            {
+                new("Class", "Scene", "Container for all 3D objects, lights, and cameras"),
+                new("Class", "Object3D", "Base class for all 3D objects with transform"),
+                new("Class", "Mesh", "Combines geometry and material for rendering"),
+                new("Class", "Group", "Container for organizing multiple objects"),
+                new("Class", "Renderer", "WebGL renderer for drawing scenes"),
+                new("Class", "RenderTarget", "Off-screen render target for effects"),
+            }
+        },
+        new ApiCategory
+        {
+            Id = "cameras",
+            Name = "Cameras",
+            Description = "Camera types for viewing the scene",
+            Items = new()
+            {
+                new("Class", "Camera", "Base camera class"),
+                new("Class", "PerspectiveCamera", "Standard perspective projection"),
+                new("Class", "OrthographicCamera", "Parallel projection without perspective"),
+                new("Class", "ArrayCamera", "Multiple viewports for split-screen"),
+                new("Class", "CubeCamera", "Six cameras for environment mapping"),
+                new("Class", "StereoCamera", "Stereoscopic 3D rendering"),
+            }
+        },
+        new ApiCategory
+        {
+            Id = "geometries",
+            Name = "Geometries",
+            Description = "3D shape definitions",
+            Items = new()
+            {
+                new("Class", "BufferGeometry", "Low-level geometry with custom attributes"),
+                new("Class", "BoxGeometry", "Rectangular box/cube"),
+                new("Class", "SphereGeometry", "Sphere with configurable segments"),
+                new("Class", "PlaneGeometry", "Flat rectangular plane"),
+                new("Class", "CylinderGeometry", "Cylinder with optional caps"),
+                new("Class", "ConeGeometry", "Cone shape"),
+                new("Class", "TorusGeometry", "Donut/ring shape"),
+                new("Class", "TorusKnotGeometry", "Complex knot shape"),
+                new("Class", "CircleGeometry", "Flat circle/disc"),
+                new("Class", "RingGeometry", "Flat ring/annulus"),
+                new("Class", "CapsuleGeometry", "Cylinder with hemispherical caps"),
+                new("Class", "LatheGeometry", "Rotational sweep from profile"),
+                new("Class", "TubeGeometry", "Tube following a path"),
+                new("Class", "DodecahedronGeometry", "12-faced polyhedron"),
+                new("Class", "IcosahedronGeometry", "20-faced polyhedron"),
+                new("Class", "OctahedronGeometry", "8-faced polyhedron"),
+                new("Class", "TetrahedronGeometry", "4-faced polyhedron"),
+                new("Class", "EdgesGeometry", "Extract visible edges"),
+                new("Class", "WireframeGeometry", "Convert to wireframe"),
+            }
+        },
+        new ApiCategory
+        {
+            Id = "materials",
+            Name = "Materials",
+            Description = "Surface appearance definitions",
+            Items = new()
+            {
+                new("Class", "Material", "Base material class"),
+                new("Class", "StandardMaterial", "PBR metallic-roughness workflow"),
+                new("Class", "PhysicalMaterial", "Extended PBR with clearcoat, transmission"),
+                new("Class", "BasicMaterial", "Unlit solid color"),
+                new("Class", "LambertMaterial", "Diffuse-only shading"),
+                new("Class", "PhongMaterial", "Diffuse + specular highlights"),
+                new("Class", "ToonMaterial", "Cel-shaded cartoon style"),
+                new("Class", "NormalMaterial", "Visualize surface normals"),
+                new("Class", "DepthMaterial", "Visualize depth values"),
+                new("Class", "MatcapMaterial", "Matcap/lit sphere shading"),
+                new("Class", "ShaderMaterial", "Custom GLSL shaders"),
+                new("Class", "RawShaderMaterial", "Direct shader control"),
+                new("Class", "LineBasicMaterial", "Simple line rendering"),
+                new("Class", "LineDashedMaterial", "Dashed line rendering"),
+                new("Class", "PointsMaterial", "Point cloud rendering"),
+                new("Class", "SpriteMaterial", "2D sprite rendering"),
+            }
+        },
+        new ApiCategory
+        {
+            Id = "lights",
+            Name = "Lights",
+            Description = "Light sources for illumination",
+            Items = new()
+            {
+                new("Class", "Light", "Base light class"),
+                new("Class", "AmbientLight", "Uniform environment light"),
+                new("Class", "DirectionalLight", "Parallel rays (sun-like)"),
+                new("Class", "PointLight", "Omnidirectional point source"),
+                new("Class", "SpotLight", "Cone-shaped spotlight"),
+                new("Class", "HemisphereLight", "Two-color dome light"),
+                new("Class", "RectAreaLight", "Rectangular area light"),
+                new("Class", "LightProbe", "Indirect lighting probe"),
+                new("Class", "LightShadow", "Shadow configuration"),
+                new("Enum", "ShadowMapType", "Shadow filtering methods"),
+            }
+        },
+        new ApiCategory
+        {
+            Id = "controls",
+            Name = "Controls",
+            Description = "Camera and object interaction",
+            Items = new()
+            {
+                new("Class", "OrbitControls", "Orbit around a target point"),
+                new("Class", "TrackballControls", "Virtual trackball rotation"),
+                new("Class", "DragControls", "Click and drag objects"),
+                new("Class", "TransformControls", "Translate/rotate/scale gizmo"),
+            }
+        },
+        new ApiCategory
+        {
+            Id = "loaders",
+            Name = "Loaders",
+            Description = "Asset loading utilities",
+            Items = new()
+            {
+                new("Class", "GLTFLoader", "Load glTF/GLB models"),
+                new("Class", "OBJLoader", "Load Wavefront OBJ models"),
+                new("Class", "STLLoader", "Load STL models"),
+                new("Class", "TextureLoader", "Load image textures"),
+                new("Class", "CubeTextureLoader", "Load cubemap textures"),
+                new("Class", "DDSLoader", "Load DDS compressed textures"),
+                new("Class", "KTX2Loader", "Load KTX2 compressed textures"),
+                new("Class", "RGBELoader", "Load HDR textures"),
+                new("Class", "LoadingManager", "Track loading progress"),
+            }
+        },
+        new ApiCategory
+        {
+            Id = "postprocessing",
+            Name = "Post-Processing",
+            Description = "Screen-space effects",
+            Items = new()
+            {
+                new("Class", "EffectComposer", "Post-processing pipeline"),
+                new("Class", "RenderPass", "Base render pass"),
+                new("Class", "SSAOPass", "Screen-space ambient occlusion"),
+                new("Class", "FXAAPass", "Fast anti-aliasing"),
+                new("Class", "SMAAPass", "Enhanced anti-aliasing"),
+                new("Class", "BloomPass", "Glow/bloom effect"),
+                new("Class", "BokehPass", "Depth of field"),
+                new("Class", "OutlinePass", "Object outline effect"),
+                new("Class", "ColorCorrectionPass", "Color adjustment"),
+                new("Class", "VignettePass", "Vignette effect"),
+                new("Class", "TAARenderPass", "Temporal anti-aliasing"),
+            }
+        },
+        new ApiCategory
+        {
+            Id = "helpers",
+            Name = "Helpers",
+            Description = "Debugging and visualization tools",
+            Items = new()
+            {
+                new("Class", "AxesHelper", "Display XYZ axes"),
+                new("Class", "GridHelper", "Display ground grid"),
+                new("Class", "BoxHelper", "Bounding box visualization"),
+                new("Class", "ArrowHelper", "Direction arrow"),
+                new("Class", "CameraHelper", "Camera frustum display"),
+                new("Class", "DirectionalLightHelper", "Light direction display"),
+                new("Class", "PointLightHelper", "Point light visualization"),
+                new("Class", "SpotLightHelper", "Spotlight cone display"),
+                new("Class", "SkeletonHelper", "Bone visualization"),
+            }
+        },
+        new ApiCategory
+        {
+            Id = "math",
+            Name = "Math",
+            Description = "Mathematical utilities",
+            Items = new()
+            {
+                new("Struct", "Vector3", "3D vector (uses System.Numerics)"),
+                new("Struct", "Matrix4x4", "4x4 transformation matrix"),
+                new("Struct", "Quaternion", "Rotation representation"),
+                new("Class", "Color", "RGB color with utilities"),
+                new("Class", "Ray", "Ray for intersection tests"),
+                new("Class", "Plane", "Mathematical plane"),
+                new("Class", "BoundingBox", "Axis-aligned bounding box"),
+                new("Class", "BoundingSphere", "Bounding sphere"),
+                new("Class", "Frustum", "Camera view frustum"),
+            }
+        },
+    };
+
+    private IEnumerable<ApiCategory> GetFilteredCategories()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+            return categories;
+
+        var query = searchQuery.ToLowerInvariant();
+        return categories
+            .Select(c => new ApiCategory
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                Items = c.Items.Where(i =>
+                    i.Name.ToLowerInvariant().Contains(query) ||
+                    i.Description.ToLowerInvariant().Contains(query)
+                ).ToList()
+            })
+            .Where(c => c.Items.Count > 0);
+    }
+
+    private class ApiCategory
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public List<ApiItem> Items { get; set; } = new();
+    }
+
+    private record ApiItem(string Type, string Name, string Description);
+}

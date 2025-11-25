@@ -1,0 +1,36 @@
+@namespace BlazorGL.Examples.Components
+
+<div class="canvas-wrapper">
+    <div class="canvas-container" style="aspect-ratio: @AspectRatio;">
+        <canvas @ref="CanvasRef" width="@Width" height="@Height"></canvas>
+        @if (ShowStats)
+        {
+            <StatsOverlay Fps="@Fps" FrameTime="@FrameTime" DrawCalls="@DrawCalls"
+                          Triangles="@Triangles" Position="@StatsPosition" />
+        }
+    </div>
+    @if (ChildContent != null)
+    {
+        <div class="canvas-overlay">
+            @ChildContent
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Width { get; set; } = 1280;
+    [Parameter] public int Height { get; set; } = 720;
+    [Parameter] public string AspectRatio { get; set; } = "16/9";
+    [Parameter] public bool ShowStats { get; set; } = true;
+    [Parameter] public string StatsPosition { get; set; } = "top-right";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    // Stats
+    [Parameter] public float Fps { get; set; }
+    [Parameter] public float FrameTime { get; set; }
+    [Parameter] public int DrawCalls { get; set; }
+    [Parameter] public int Triangles { get; set; }
+
+    // Canvas reference that parent can access
+    public ElementReference CanvasRef { get; private set; }
+}

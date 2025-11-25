@@ -71,7 +71,7 @@
 
     <div class="control-group">
         <label>Use CSM (Cascaded Shadow Maps):</label>
-        <input type="checkbox" @bind="useCSM" @onchange="ToggleCSM" />
+        <input type="checkbox" checked="@useCSM" @onchange="ToggleCSM" />
     </div>
 
     @if (useCSM)

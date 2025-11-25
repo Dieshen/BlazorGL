@@ -1,8 +1,183 @@
 @page "/"
 
-<h1>BlazorGL Examples</h1>
+<PageTitle>BlazorGL - 3D Graphics for Blazor</PageTitle>
 
-<p>
-    This WebAssembly application hosts interactive samples for the BlazorGL library.
-    Add components here to experiment with scenes, loaders, and rendering features.
-</p>
+<div class="homepage">
+    <section class="hero">
+        <div class="hero-content">
+            <h1>BlazorGL</h1>
+            <p class="hero-subtitle">A comprehensive 3D rendering library for Blazor WebAssembly</p>
+            <p class="hero-description">
+                Build stunning 3D experiences in the browser using C# and .NET.
+                BlazorGL brings Three.js-style capabilities to the Blazor ecosystem.
+            </p>
+            <div class="hero-actions">
+                <a href="/docs/getting-started" class="btn btn-primary">Get Started</a>
+                <a href="/examples/basics/hello-world" class="btn btn-secondary">View Examples</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <h2>Features</h2>
+        <div class="card-grid">
+            <div class="card feature-card">
+                <div class="feature-icon">📐</div>
+                <div class="feature-content">
+                    <h3>21 Geometry Types</h3>
+                    <p>Box, Sphere, Torus, TorusKnot, and more. Includes BufferGeometry for custom meshes.</p>
+                </div>
+            </div>
+            <div class="card feature-card">
+                <div class="feature-icon">🎨</div>
+                <div class="feature-content">
+                    <h3>19 Material Types</h3>
+                    <p>PBR materials, toon shading, custom shaders, and more for any visual style.</p>
+                </div>
+            </div>
+            <div class="card feature-card">
+                <div class="feature-icon">💡</div>
+                <div class="feature-content">
+                    <h3>Advanced Lighting</h3>
+                    <p>Directional, point, spot, hemisphere, and area lights with real-time shadows.</p>
+                </div>
+            </div>
+            <div class="card feature-card">
+                <div class="feature-icon">🌑</div>
+                <div class="feature-content">
+                    <h3>Shadow Mapping</h3>
+                    <p>PCF, PCSS, VSM, and Cascaded Shadow Maps for high-quality shadows.</p>
+                </div>
+            </div>
+            <div class="card feature-card">
+                <div class="feature-icon">✨</div>
+                <div class="feature-content">
+                    <h3>Post-Processing</h3>
+                    <p>SSAO, bloom, FXAA, depth of field, color correction, and more effects.</p>
+                </div>
+            </div>
+            <div class="card feature-card">
+                <div class="feature-icon">🎮</div>
+                <div class="feature-content">
+                    <h3>Camera Controls</h3>
+                    <p>Orbit, trackball, drag, and transform controls for intuitive interaction.</p>
+                </div>
+            </div>
+            <div class="card feature-card">
+                <div class="feature-icon">📦</div>
+                <div class="feature-content">
+                    <h3>Model Loaders</h3>
+                    <p>Load GLTF, OBJ, and STL models. Support for DDS, KTX2, and RGBE textures.</p>
+                </div>
+            </div>
+            <div class="card feature-card">
+                <div class="feature-icon">🎬</div>
+                <div class="feature-content">
+                    <h3>Animation System</h3>
+                    <p>Keyframe animation, skeletal animation, and animation blending.</p>
+                </div>
+            </div>
+            <div class="card feature-card">
+                <div class="feature-icon">🎯</div>
+                <div class="feature-content">
+                    <h3>Raycasting</h3>
+                    <p>Object picking, intersection testing, and mouse interaction support.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="quick-start">
+        <h2>Quick Start</h2>
+        <div class="docs-content">
+            <h3>1. Install the Package</h3>
+            <CodeSnippet Language="bash" Code="dotnet add package BlazorGL" />
+
+            <h3>2. Create a Scene</h3>
+            <CodeSnippet Language="csharp" Code="@quickStartCode" />
+
+            <p>
+                <a href="/docs/getting-started">Read the full getting started guide →</a>
+            </p>
+        </div>
+    </section>
+
+    <section class="examples-preview">
+        <h2>Example Gallery</h2>
+        <p class="text-muted text-center mb-4">Explore interactive examples showcasing BlazorGL capabilities</p>
+        <div class="card-grid">
+            <a href="/examples/basics/hello-world" class="card example-preview-card">
+                <div class="example-preview-badge">Basics</div>
+                <h3>Hello World</h3>
+                <p>Create your first 3D scene with a rotating cube.</p>
+            </a>
+            <a href="/examples/geometry/gallery" class="card example-preview-card">
+                <div class="example-preview-badge">Geometry</div>
+                <h3>Geometry Gallery</h3>
+                <p>Interactive showcase of all 21 geometry types.</p>
+            </a>
+            <a href="/examples/materials/showcase" class="card example-preview-card">
+                <div class="example-preview-badge">Materials</div>
+                <h3>Material Showcase</h3>
+                <p>Compare all material types with adjustable parameters.</p>
+            </a>
+            <a href="/shadows/comparison" class="card example-preview-card">
+                <div class="example-preview-badge">Shadows</div>
+                <h3>Shadow Comparison</h3>
+                <p>Compare PCF, PCSS, VSM, and CSM shadow techniques.</p>
+            </a>
+            <a href="/postprocessing" class="card example-preview-card">
+                <div class="example-preview-badge">Effects</div>
+                <h3>Post-Processing</h3>
+                <p>SSAO, FXAA, and color correction effects.</p>
+            </a>
+            <a href="/examples/controls/orbit" class="card example-preview-card">
+                <div class="example-preview-badge">Controls</div>
+                <h3>Orbit Controls</h3>
+                <p>Interactive camera controls for scene navigation.</p>
+            </a>
+        </div>
+    </section>
+</div>
+
+@code {
+    private string quickStartCode = @"// In your Blazor component
+@inject IJSRuntime JSRuntime
+
+<canvas @ref=""canvasRef""></canvas>
+
+@code {
+    private ElementReference canvasRef;
+    private Renderer renderer;
+    private Scene scene;
+    private PerspectiveCamera camera;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // Initialize renderer
+        renderer = new Renderer();
+        await renderer.InitializeAsync(canvasRef, JSRuntime);
+
+        // Create scene and camera
+        scene = new Scene();
+        camera = new PerspectiveCamera(75, 16f/9f, 0.1f, 1000f);
+        camera.Position = new Vector3(0, 0, 5);
+
+        // Add a cube
+        var geometry = new BoxGeometry(1, 1, 1);
+        var material = new StandardMaterial { Color = new Color(0.5f, 0.8f, 0.3f) };
+        var cube = new Mesh(geometry, material);
+        scene.Add(cube);
+
+        // Add light
+        var light = new DirectionalLight(Color.White, 1.0f);
+        light.Position = new Vector3(5, 5, 5);
+        scene.Add(light);
+
+        // Render
+        renderer.Render(scene, camera);
+    }
+}";
+}

@@ -1,0 +1,317 @@
+@page "/examples/basics/hello-world"
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Hello World - BlazorGL Examples</PageTitle>
+
+<div class="example-header">
+    <h1>Hello World</h1>
+    <p class="example-description">
+        The classic first example - a rotating cube with basic lighting.
+        This demonstrates the fundamental concepts of BlazorGL: scene, camera, mesh, and render loop.
+    </p>
+</div>
+
+<div class="example-content">
+    <div class="example-main">
+        <div class="canvas-container">
+            <canvas @ref="canvasRef" width="1280" height="720"></canvas>
+            <StatsOverlay Fps="@fps" FrameTime="@frameTime" DrawCalls="@drawCalls" Triangles="@triangles" />
+        </div>
+    </div>
+
+    <div class="example-sidebar">
+        <ParameterPanel Title="Cube Properties">
+            <div class="param-row">
+                <label class="param-label">
+                    <span>Color</span>
+                </label>
+                <input type="color" value="@cubeColorHex" @onchange="OnColorChange" />
+            </div>
+            <div class="param-row">
+                <label class="param-label">
+                    <span>Rotation Speed X</span>
+                    <span class="param-value">@rotationSpeedX.ToString("F2")</span>
+                </label>
+                <input type="range" min="0" max="0.1" step="0.005" @bind="rotationSpeedX" @bind:event="oninput" />
+            </div>
+            <div class="param-row">
+                <label class="param-label">
+                    <span>Rotation Speed Y</span>
+                    <span class="param-value">@rotationSpeedY.ToString("F2")</span>
+                </label>
+                <input type="range" min="0" max="0.1" step="0.005" @bind="rotationSpeedY" @bind:event="oninput" />
+            </div>
+            <div class="param-row">
+                <label class="param-label">
+                    <span>Scale</span>
+                    <span class="param-value">@cubeScale.ToString("F1")</span>
+                </label>
+                <input type="range" min="0.5" max="3" step="0.1" @bind="cubeScale" @bind:event="oninput" />
+            </div>
+        </ParameterPanel>
+
+        <ParameterPanel Title="Material">
+            <div class="param-row">
+                <label class="param-label">
+                    <span>Roughness</span>
+                    <span class="param-value">@roughness.ToString("F2")</span>
+                </label>
+                <input type="range" min="0" max="1" step="0.05" @bind="roughness" @bind:event="oninput" />
+            </div>
+            <div class="param-row">
+                <label class="param-label">
+                    <span>Metalness</span>
+                    <span class="param-value">@metalness.ToString("F2")</span>
+                </label>
+                <input type="range" min="0" max="1" step="0.05" @bind="metalness" @bind:event="oninput" />
+            </div>
+            <div class="param-row">
+                <label class="param-label">
+                    <span>Wireframe</span>
+                </label>
+                <input type="checkbox" @bind="wireframe" />
+            </div>
+        </ParameterPanel>
+
+        <ParameterPanel Title="Camera">
+            <div class="param-row">
+                <label class="param-label">
+                    <span>Distance</span>
+                    <span class="param-value">@cameraDistance.ToString("F1")</span>
+                </label>
+                <input type="range" min="2" max="15" step="0.5" @bind="cameraDistance" @bind:event="oninput" />
+            </div>
+            <div class="param-row">
+                <label class="param-label">
+                    <span>Auto Rotate</span>
+                </label>
+                <input type="checkbox" @bind="autoRotateCamera" />
+            </div>
+        </ParameterPanel>
+
+        <ParameterPanel Title="Code" Collapsed="true">
+            <CodeSnippet Language="csharp" Code="@codeExample" />
+        </ParameterPanel>
+    </div>
+</div>
+
+@code {
+    private ElementReference canvasRef;
+    private Renderer? renderer;
+    private Scene? scene;
+    private PerspectiveCamera? camera;
+    private Mesh? cube;
+    private StandardMaterial? material;
+    private bool isRunning = false;
+
+    // Stats
+    private float fps = 0;
+    private float frameTime = 0;
+    private int drawCalls = 0;
+    private int triangles = 12; // Box has 12 triangles
+
+    // Cube parameters
+    private string cubeColorHex = "#66aaff";
+    private float rotationSpeedX = 0.01f;
+    private float rotationSpeedY = 0.02f;
+    private float cubeScale = 1.5f;
+
+    // Material parameters
+    private float roughness = 0.5f;
+    private float metalness = 0.3f;
+    private bool wireframe = false;
+
+    // Camera parameters
+    private float cameraDistance = 5f;
+    private bool autoRotateCamera = true;
+    private float cameraAngle = 0f;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeScene();
+        }
+    }
+
+    private async Task InitializeScene()
+    {
+        try
+        {
+            // Initialize renderer
+            renderer = new Renderer();
+            await renderer.InitializeAsync(canvasRef, JSRuntime);
+            renderer.SetSize(1280, 720);
+            renderer.SetClearColor(new BlazorGL.Core.Math.Color(0.1f, 0.1f, 0.15f));
+
+            // Create scene
+            scene = new Scene();
+
+            // Create camera
+            camera = new PerspectiveCamera(75, 1280f / 720f, 0.1f, 100f);
+            camera.Position = new Vector3(0, 0, cameraDistance);
+
+            // Create cube mesh
+            var geometry = new BoxGeometry(1, 1, 1);
+            material = new StandardMaterial
+            {
+                Color = HexToColor(cubeColorHex),
+                Roughness = roughness,
+                Metalness = metalness
+            };
+            cube = new Mesh(geometry, material);
+            scene.Add(cube);
+
+            // Add ambient light
+            var ambientLight = new AmbientLight(new BlazorGL.Core.Math.Color(0.4f, 0.4f, 0.4f), 0.5f);
+            scene.Add(ambientLight);
+
+            // Add directional light
+            var directionalLight = new DirectionalLight(new BlazorGL.Core.Math.Color(1f, 1f, 1f), 1.0f);
+            directionalLight.Position = new Vector3(5, 5, 5);
+            scene.Add(directionalLight);
+
+            // Add a second light for better illumination
+            var fillLight = new DirectionalLight(new BlazorGL.Core.Math.Color(0.5f, 0.5f, 0.6f), 0.5f);
+            fillLight.Position = new Vector3(-3, 2, -3);
+            scene.Add(fillLight);
+
+            // Start render loop
+            isRunning = true;
+            await RenderLoop();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing scene: {ex.Message}");
+        }
+    }
+
+    private async Task RenderLoop()
+    {
+        var lastTime = DateTime.UtcNow;
+
+        while (isRunning)
+        {
+            var currentTime = DateTime.UtcNow;
+            var deltaTime = (float)(currentTime - lastTime).TotalMilliseconds;
+            lastTime = currentTime;
+
+            // Update stats
+            frameTime = deltaTime;
+            fps = deltaTime > 0 ? 1000f / deltaTime : 0;
+
+            // Update cube
+            if (cube != null)
+            {
+                // Rotation
+                cube.Rotation = new Vector3(
+                    cube.Rotation.X + rotationSpeedX,
+                    cube.Rotation.Y + rotationSpeedY,
+                    cube.Rotation.Z
+                );
+
+                // Scale
+                cube.Scale = new Vector3(cubeScale, cubeScale, cubeScale);
+            }
+
+            // Update material
+            if (material != null)
+            {
+                material.Roughness = roughness;
+                material.Metalness = metalness;
+                material.Wireframe = wireframe;
+            }
+
+            // Update camera
+            if (camera != null)
+            {
+                if (autoRotateCamera)
+                {
+                    cameraAngle += 0.005f;
+                    camera.Position = new Vector3(
+                        (float)System.Math.Sin(cameraAngle) * cameraDistance,
+                        2,
+                        (float)System.Math.Cos(cameraAngle) * cameraDistance
+                    );
+                    camera.LookAt(Vector3.Zero);
+                }
+                else
+                {
+                    camera.Position = new Vector3(0, 0, cameraDistance);
+                    camera.LookAt(Vector3.Zero);
+                }
+            }
+
+            // Render
+            if (renderer != null && scene != null && camera != null)
+            {
+                renderer.Render(scene, camera);
+                drawCalls = renderer.Stats?.DrawCalls ?? 1;
+            }
+
+            StateHasChanged();
+            await Task.Delay(16); // ~60 FPS
+        }
+    }
+
+    private void OnColorChange(ChangeEventArgs e)
+    {
+        cubeColorHex = e.Value?.ToString() ?? "#66aaff";
+        if (material != null)
+        {
+            material.Color = HexToColor(cubeColorHex);
+        }
+    }
+
+    private BlazorGL.Core.Math.Color HexToColor(string hex)
+    {
+        hex = hex.TrimStart('#');
+        if (hex.Length == 6)
+        {
+            int r = Convert.ToInt32(hex.Substring(0, 2), 16);
+            int g = Convert.ToInt32(hex.Substring(2, 2), 16);
+            int b = Convert.ToInt32(hex.Substring(4, 2), 16);
+            return new BlazorGL.Core.Math.Color(r / 255f, g / 255f, b / 255f);
+        }
+        return new BlazorGL.Core.Math.Color(0.4f, 0.67f, 1f);
+    }
+
+    public void Dispose()
+    {
+        isRunning = false;
+    }
+
+    private string codeExample = @"// Create a simple rotating cube scene
+var renderer = new Renderer();
+await renderer.InitializeAsync(canvasRef, JSRuntime);
+
+var scene = new Scene();
+var camera = new PerspectiveCamera(75, 16f/9f, 0.1f, 100f);
+camera.Position = new Vector3(0, 0, 5);
+
+// Create the cube
+var geometry = new BoxGeometry(1, 1, 1);
+var material = new StandardMaterial
+{
+    Color = new Color(0.4f, 0.67f, 1f),
+    Roughness = 0.5f,
+    Metalness = 0.3f
+};
+var cube = new Mesh(geometry, material);
+scene.Add(cube);
+
+// Add lights
+scene.Add(new AmbientLight(Color.White, 0.5f));
+scene.Add(new DirectionalLight(Color.White, 1.0f)
+{
+    Position = new Vector3(5, 5, 5)
+});
+
+// Render loop
+while (true)
+{
+    cube.Rotation += new Vector3(0.01f, 0.02f, 0);
+    renderer.Render(scene, camera);
+    await Task.Delay(16);
+}";
+}

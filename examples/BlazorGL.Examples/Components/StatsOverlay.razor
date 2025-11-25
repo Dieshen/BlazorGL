@@ -1,0 +1,67 @@
+@namespace BlazorGL.Examples.Components
+
+<div class="stats-overlay @(Position)">
+    <div class="stat-row">
+        <span class="stat-label">FPS</span>
+        <span class="stat-value @GetFpsClass()">@Fps.ToString("F0")</span>
+    </div>
+    <div class="stat-row">
+        <span class="stat-label">Frame</span>
+        <span class="stat-value">@FrameTime.ToString("F1")ms</span>
+    </div>
+    @if (ShowDrawCalls)
+    {
+        <div class="stat-row">
+            <span class="stat-label">Draw Calls</span>
+            <span class="stat-value">@DrawCalls</span>
+        </div>
+    }
+    @if (ShowTriangles)
+    {
+        <div class="stat-row">
+            <span class="stat-label">Triangles</span>
+            <span class="stat-value">@FormatNumber(Triangles)</span>
+        </div>
+    }
+    @if (ShowMemory)
+    {
+        <div class="stat-row">
+            <span class="stat-label">Memory</span>
+            <span class="stat-value">@FormatMemory(MemoryUsage)</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public float Fps { get; set; }
+    [Parameter] public float FrameTime { get; set; }
+    [Parameter] public int DrawCalls { get; set; }
+    [Parameter] public int Triangles { get; set; }
+    [Parameter] public long MemoryUsage { get; set; }
+    [Parameter] public bool ShowDrawCalls { get; set; } = true;
+    [Parameter] public bool ShowTriangles { get; set; } = true;
+    [Parameter] public bool ShowMemory { get; set; } = false;
+    [Parameter] public string Position { get; set; } = "top-right"; // top-left, top-right, bottom-left, bottom-right
+
+    private string GetFpsClass()
+    {
+        if (Fps >= 55) return "fps-good";
+        if (Fps >= 30) return "fps-medium";
+        return "fps-poor";
+    }
+
+    private string FormatNumber(int num)
+    {
+        if (num >= 1_000_000) return $"{num / 1_000_000f:F1}M";
+        if (num >= 1_000) return $"{num / 1_000f:F1}K";
+        return num.ToString();
+    }
+
+    private string FormatMemory(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824f:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576f:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024f:F1} KB";
+        return $"{bytes} B";
+    }
+}

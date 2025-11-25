@@ -1,0 +1,43 @@
+@inherits LayoutComponentBase
+
+<div class="page">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="/" class="brand">
+                <span class="brand-icon">GL</span>
+                <span class="brand-text">BlazorGL</span>
+            </a>
+        </div>
+        <NavMenu />
+    </aside>
+
+    <main class="main-content">
+        <div class="top-bar">
+            <button class="menu-toggle" @onclick="ToggleSidebar">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="breadcrumb">
+                @* Breadcrumb could be added here *@
+            </div>
+            <div class="top-bar-actions">
+                <a href="https://github.com/narcoleptic-fox/BlazorGL" target="_blank" class="github-link">
+                    GitHub
+                </a>
+            </div>
+        </div>
+        <article class="content">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private bool sidebarCollapsed = false;
+
+    private void ToggleSidebar()
+    {
+        sidebarCollapsed = !sidebarCollapsed;
+    }
+}

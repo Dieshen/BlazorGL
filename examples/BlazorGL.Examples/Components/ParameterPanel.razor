@@ -1,0 +1,27 @@
+@namespace BlazorGL.Examples.Components
+
+<div class="parameter-panel @(Collapsed ? "collapsed" : "")">
+    <div class="panel-header" @onclick="ToggleCollapse">
+        <span class="panel-title">@Title</span>
+        <span class="panel-toggle">@(Collapsed ? "+" : "-")</span>
+    </div>
+    @if (!Collapsed)
+    {
+        <div class="panel-content">
+            @ChildContent
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Parameters";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool Collapsed { get; set; } = false;
+    [Parameter] public EventCallback<bool> CollapsedChanged { get; set; }
+
+    private async Task ToggleCollapse()
+    {
+        Collapsed = !Collapsed;
+        await CollapsedChanged.InvokeAsync(Collapsed);
+    }
+}

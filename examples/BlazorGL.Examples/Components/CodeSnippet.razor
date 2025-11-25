@@ -1,0 +1,37 @@
+@namespace BlazorGL.Examples.Components
+@inject IJSRuntime JSRuntime
+
+<div class="code-snippet">
+    <div class="code-header">
+        <span class="code-language">@Language</span>
+        <button class="copy-button" @onclick="CopyCode">
+            @(copied ? "Copied!" : "Copy")
+        </button>
+    </div>
+    <pre class="code-content"><code>@Code</code></pre>
+</div>
+
+@code {
+    [Parameter] public string Code { get; set; } = "";
+    [Parameter] public string Language { get; set; } = "csharp";
+
+    private bool copied = false;
+
+    private async Task CopyCode()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Code);
+            copied = true;
+            StateHasChanged();
+
+            await Task.Delay(2000);
+            copied = false;
+            StateHasChanged();
+        }
+        catch
+        {
+            // Clipboard API not available
+        }
+    }
+}
